@@ -1,74 +1,63 @@
 // ── Wallet Service Worker ──
-// Caches the app shell for offline use
-// Cache busts on new deploy via CACHE_VERSION
+// Scoped to /Wallet/ for GitHub Pages: raees-12.github.io/Wallet/
 
-const CACHE_VERSION = 'wallet-v1';
-const CACHE_STATIC  = 'wallet-static-v1';
+const CACHE_NAME = 'wallet-v1';
+const BASE = '/Wallet/';
 
-// Files to cache for offline shell
 const SHELL_FILES = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json',
-  '/Assets/l_logo.png',
-  '/Assets/d_logo.png',
-  '/Assets/fav.png',
-  'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap'
+  BASE,
+  BASE + 'index.html',
+  BASE + 'style.css',
+  BASE + 'app.js',
+  BASE + 'manifest.json',
+  BASE + 'Assets/l_logo.png',
+  BASE + 'Assets/d_logo.png',
+  BASE + 'Assets/fav.png',
 ];
 
-// ── INSTALL: cache app shell ──
+// ── INSTALL ──
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_STATIC).then(cache => {
-      return cache.addAll(SHELL_FILES).catch(err => {
-        console.warn('SW: Some files failed to cache:', err);
-      });
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(SHELL_FILES).catch(err => console.warn('Cache partial fail:', err)))
+      .then(() => self.skipWaiting())
   );
 });
 
-// ── ACTIVATE: clean old caches ──
+// ── ACTIVATE: remove old caches ──
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(k => k !== CACHE_STATIC)
-          .map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── FETCH: serve from cache, fallback to network ──
+// ── FETCH ──
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Never intercept Google Apps Script API calls — always live
+  // Never intercept API calls or external fonts
   if (url.hostname === 'script.google.com') return;
-  // Never intercept Google Fonts (they have their own cache)
   if (url.hostname === 'fonts.gstatic.com') return;
+  if (url.hostname === 'fonts.googleapis.com') return;
 
-  // For navigation requests (HTML pages): network first, fallback to cache
+  // Navigation: network first, fallback to cached index.html
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request)
-        .catch(() => caches.match('/index.html'))
+      fetch(e.request).catch(() => caches.match(BASE + 'index.html'))
     );
     return;
   }
 
-  // For everything else: cache first, fallback to network
+  // Static assets: cache first, fallback to network
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(response => {
-        // Cache successful GET responses
         if (response && response.status === 200 && e.request.method === 'GET') {
           const clone = response.clone();
-          caches.open(CACHE_STATIC).then(cache => cache.put(e.request, clone));
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         }
         return response;
       });
