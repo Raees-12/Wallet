@@ -145,9 +145,44 @@ function saveTheme(t) { try{localStorage.setItem('wallet_theme',t);}catch(e){} }
 function loadTheme() { try{return localStorage.getItem('wallet_theme')||'light';}catch(e){return 'light';} }
 
 // ── INIT ──
+
+// ── BALANCE VISIBILITY ──
+let _balanceHidden = localStorage.getItem('wallet_balance_hidden') === 'true';
+
+function toggleBalanceVisibility() {
+  _balanceHidden = !_balanceHidden;
+  localStorage.setItem('wallet_balance_hidden', _balanceHidden);
+  applyBalanceVisibility();
+}
+
+function applyBalanceVisibility() {
+  const balEl  = document.getElementById('dash-balance');
+  const eyeOpen   = document.getElementById('eye-icon-open');
+  const eyeClosed = document.getElementById('eye-icon-closed');
+  if (!balEl) return;
+  if (_balanceHidden) {
+    balEl.textContent = '••••••';
+    balEl.style.letterSpacing = '4px';
+    if (eyeOpen)   eyeOpen.style.display   = 'none';
+    if (eyeClosed) eyeClosed.style.display = 'block';
+  } else {
+    // Re-render the actual value
+    const net = _lastNetBalance !== undefined ? _lastNetBalance : 0;
+    balEl.textContent = Number(net).toLocaleString('en-IN');
+    balEl.style.letterSpacing = '';
+    if (eyeOpen)   eyeOpen.style.display   = 'block';
+    if (eyeClosed) eyeClosed.style.display = 'none';
+  }
+}
+
+let _lastNetBalance = 0;
+
 window.addEventListener('DOMContentLoaded', () => {
   const theme = loadTheme();
   applyTheme(theme);
+  // Restore balance visibility preference
+  _balanceHidden = localStorage.getItem('wallet_balance_hidden') === 'true';
+  setTimeout(applyBalanceVisibility, 100);
   const saved = loadSession();
   if (saved) {
     currentUser = saved;
@@ -387,7 +422,13 @@ function renderDashboard() {
   const totalInc = filtInc.reduce((s,r)=>s+Number(r['Income Amount']||0),0);
   const totalExp = filtExp.reduce((s,r)=>s+Number(r['Expense Amount']||0),0);
   const net = totalInc - totalExp;
-  document.getElementById('dash-balance').textContent = Number(net).toLocaleString('en-IN');
+  _lastNetBalance = net;
+  if (!_balanceHidden) {
+    document.getElementById('dash-balance').textContent = Number(net).toLocaleString('en-IN');
+  } else {
+    document.getElementById('dash-balance').textContent = '••••••';
+    document.getElementById('dash-balance').style.letterSpacing = '4px';
+  }
   document.getElementById('dash-income').textContent = fmt(totalInc);
   document.getElementById('dash-expense').textContent = fmt(totalExp);
   // Loans are always total (not date-filtered since they span months)
