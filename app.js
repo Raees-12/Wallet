@@ -164,9 +164,10 @@ function applyBalanceVisibility() {
   const eyeClosed = document.getElementById('eye-icon-closed');
   if (!balEl) return;
   if (_balanceHidden) {
-    balEl.textContent = '••••••';
-    balEl.style.letterSpacing = '4px';
-    balEl.style.fontSize = '1.1em';
+    balEl.textContent = '* * * * *';
+    balEl.style.letterSpacing = '2px';
+    balEl.style.fontSize = '22px';
+    balEl.style.opacity = '0.7';
     if (eyeOpen)   eyeOpen.style.display   = 'none';
     if (eyeClosed) eyeClosed.style.display = 'block';
   } else {
@@ -174,6 +175,7 @@ function applyBalanceVisibility() {
     balEl.textContent = Number(net).toLocaleString('en-IN');
     balEl.style.letterSpacing = '';
     balEl.style.fontSize = '';
+    balEl.style.opacity = '';
     if (eyeOpen)   eyeOpen.style.display   = 'block';
     if (eyeClosed) eyeClosed.style.display = 'none';
   }
@@ -184,9 +186,11 @@ let _lastNetBalance = 0;
 window.addEventListener('DOMContentLoaded', () => {
   const theme = loadTheme();
   applyTheme(theme);
-  // Restore balance visibility preference
-  _balanceHidden = localStorage.getItem('wallet_balance_hidden') === 'true';
-  setTimeout(applyBalanceVisibility, 100);
+  // Restore balance visibility — default hidden if never set
+  _balanceHidden = localStorage.getItem('wallet_balance_hidden') !== null
+    ? localStorage.getItem('wallet_balance_hidden') === 'true'
+    : true;
+  applyBalanceVisibility();
   const saved = loadSession();
   if (saved) {
     currentUser = saved;
@@ -429,9 +433,14 @@ function renderDashboard() {
   _lastNetBalance = net;
   if (!_balanceHidden) {
     document.getElementById('dash-balance').textContent = Number(net).toLocaleString('en-IN');
+    document.getElementById('dash-balance').style.letterSpacing = '';
+    document.getElementById('dash-balance').style.fontSize = '';
+    document.getElementById('dash-balance').style.opacity = '';
   } else {
-    document.getElementById('dash-balance').textContent = '••••••';
-    document.getElementById('dash-balance').style.letterSpacing = '4px';
+    document.getElementById('dash-balance').textContent = '* * * * *';
+    document.getElementById('dash-balance').style.letterSpacing = '2px';
+    document.getElementById('dash-balance').style.fontSize = '22px';
+    document.getElementById('dash-balance').style.opacity = '0.7';
   }
   document.getElementById('dash-income').textContent = fmt(totalInc);
   document.getElementById('dash-expense').textContent = fmt(totalExp);
