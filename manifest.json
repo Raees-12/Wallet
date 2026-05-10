@@ -2,7 +2,8 @@
   "name": "Wallet — Smart Finance Tracker",
   "short_name": "Wallet",
   "description": "Personal finance tracker — expenses, income, loans, EMI",
-  "start_url": "/",
+  "start_url": "/Wallet/",
+  "scope": "/Wallet/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f4f6fb",
@@ -21,6 +22,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["finance", "productivity"],
-  "screenshots": []
+  "categories": ["finance", "productivity"]
 }
