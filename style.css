@@ -462,3 +462,11 @@ select option{background:var(--surface);color:var(--text);}
 .detail-action-btn:active{opacity:.8;}
 .detail-edit-btn{background:var(--surface2);color:var(--text);}
 .detail-delete-btn{background:rgba(217,48,37,.1);color:var(--red);}
+
+/* ── BALANCE AMOUNT TYPOGRAPHY ── */
+.balance-amount { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800;
+  letter-spacing: -1px; color: #fff; line-height: 1; }
+.bal-symbol { font-size: 20px; font-weight: 600; opacity: .75; margin-right: 2px;
+  vertical-align: middle; }
+.bal-main { font-size: 36px; font-weight: 800; }
+.bal-dec  { font-size: 18px; font-weight: 600; opacity: .75; }
