@@ -2,7 +2,6 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
-<base href="/Wallet/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1a73e8" id="meta-theme-color">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -68,25 +67,18 @@
         <button class="btn btn-primary btn-sm" onclick="applyDashRange()">Go</button>
       </div>
       <div class="balance-card">
-        <div style="margin-bottom:6px">
-          <div class="balance-label" id="dash-period-label">This Month</div>
-        </div>
-        <div class="balance-amount" style="display:flex;align-items:center;gap:12px">
-          <div><span class="currency">₹</span><span id="dash-balance" style="letter-spacing:2px;font-size:22px;opacity:.7">* * * * *</span></div>
-          <button onclick="toggleBalanceVisibility()" id="balance-eye-btn"
-            style="background:rgba(255,255,255,.15);border:none;border-radius:50%;
-            width:30px;height:30px;cursor:pointer;display:flex;align-items:center;
-            justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;
-            padding:0;margin-bottom:2px">
-            <svg id="eye-icon-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+        <div class="balance-label" id="dash-period-label">This Month</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <div class="balance-amount" style="margin:0" id="dash-balance"><span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span></div>
+          <button onclick="toggleBalance()" id="bal-eye-btn"
+            style="background:rgba(255,255,255,.15);border:none;border-radius:8px;
+            padding:6px 7px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;
+            -webkit-tap-highlight-color:transparent;margin-top:4px">
+            <svg id="bal-eye-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
             </svg>
-            <svg id="eye-icon-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-              <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
+            <svg id="eye-icon-closed" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="2" style="display:none">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
             </svg>
           </button>
         </div>
