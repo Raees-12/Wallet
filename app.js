@@ -10,6 +10,7 @@ const DEFAULT_EMI     = ['Credit Card Loan','Personal Loan'];
 let currentUser = null;
 let appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{expense:[],income:[],loan:[]} };
 let currentPage = 'dashboard';
+let balanceHidden = true; // default hidden
 let currentAddTab = 'expense';
 let currentLoanAction = null;
 let currentReportType = 'daily';
@@ -104,6 +105,31 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
 
 function fmt(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
 
+// Format with small superscript decimal part
+function fmtSplit(n) {
+  const num = Number(n);
+  const abs = Math.abs(num);
+  const sign = num < 0 ? '-' : '';
+  const str = abs.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const dot = str.lastIndexOf('.');
+  const main = str.slice(0, dot);
+  const dec  = str.slice(dot+1);
+  return `${sign}<span class="bal-symbol">₹</span><span class="bal-main">${main}</span><span class="bal-dec">.${dec}</span>`;
+}
+
+function fmtBalance(n) {
+  if (balanceHidden) {
+    return '<span class="bal-symbol">₹</span><span class="bal-main">XXXX</span><span class="bal-dec">.XX</span>';
+  }
+  return fmtSplit(n);
+}
+
+function fmtMini(n) {
+  // For mini tiles inside balance card - show XXXX or normal
+  if (balanceHidden) return '₹XXXX';
+  return fmt(n);
+}
+
 function getDateRange(type) {
   const now = new Date();
   let from, to;
@@ -146,81 +172,6 @@ function loadTheme() { try{return localStorage.getItem('wallet_theme')||'light';
 
 // ── INIT ──
 
-// ── BALANCE VISIBILITY ──
-// Default to hidden if no preference saved yet
-let _balanceHidden = localStorage.getItem('wallet_balance_hidden') !== null
-  ? localStorage.getItem('wallet_balance_hidden') === 'true'
-  : true;
-
-function toggleBalanceVisibility() {
-  _balanceHidden = !_balanceHidden;
-  localStorage.setItem('wallet_balance_hidden', _balanceHidden);
-  applyBalanceVisibility();
-}
-
-function applyBalanceVisibility() {
-  const balEl     = document.getElementById('dash-balance');
-  const eyeOpen   = document.getElementById('eye-icon-open');
-  const eyeClosed = document.getElementById('eye-icon-closed');
-  if (!balEl) return;
-  if (_balanceHidden) {
-    balEl.textContent = '* * * * *';
-    balEl.style.letterSpacing = '2px';
-    balEl.style.fontSize = '22px';
-    balEl.style.opacity = '0.7';
-    if (eyeOpen)   eyeOpen.style.display   = 'none';
-    if (eyeClosed) eyeClosed.style.display = 'block';
-  } else {
-    const net = _lastNetBalance !== undefined ? _lastNetBalance : 0;
-    balEl.textContent = Number(net).toLocaleString('en-IN');
-    balEl.style.letterSpacing = '';
-    balEl.style.fontSize = '';
-    balEl.style.opacity = '';
-    if (eyeOpen)   eyeOpen.style.display   = 'block';
-    if (eyeClosed) eyeClosed.style.display = 'none';
-  }
-}
-
-let _lastNetBalance = 0;
-
-window.addEventListener('DOMContentLoaded', () => {
-  const theme = loadTheme();
-  applyTheme(theme);
-  // Restore balance visibility — default hidden if never set
-  _balanceHidden = localStorage.getItem('wallet_balance_hidden') !== null
-    ? localStorage.getItem('wallet_balance_hidden') === 'true'
-    : true;
-  applyBalanceVisibility();
-  const saved = loadSession();
-  if (saved) {
-    currentUser = saved;
-    initMainScreen();
-    showScreen('main-screen');
-    loadAllData();
-  }
-});
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  const tog = document.getElementById('dark-toggle');
-  if (tog) tog.checked = theme === 'dark';
-  updateLogo();
-}
-
-function updateLogo() {
-  const theme = document.documentElement.getAttribute('data-theme') || 'light';
-  const src = theme === 'dark' ? D_LOGO_SRC : L_LOGO_SRC;
-  document.querySelectorAll('.app-logo').forEach(el => el.src = src);
-}
-
-function toggleTheme(el) {
-  const t = el.checked ? 'dark' : 'light';
-  saveTheme(t);
-  applyTheme(t);
-  // Update PWA theme-color meta
-  const metaTheme = document.getElementById('meta-theme-color');
-  if (metaTheme) metaTheme.content = t === 'dark' ? '#0a0a0f' : '#1a73e8';
-}
 
 // ── AUTH ──
 async function doLogin() {
@@ -430,20 +381,9 @@ function renderDashboard() {
   const totalInc = filtInc.reduce((s,r)=>s+Number(r['Income Amount']||0),0);
   const totalExp = filtExp.reduce((s,r)=>s+Number(r['Expense Amount']||0),0);
   const net = totalInc - totalExp;
-  _lastNetBalance = net;
-  if (!_balanceHidden) {
-    document.getElementById('dash-balance').textContent = Number(net).toLocaleString('en-IN');
-    document.getElementById('dash-balance').style.letterSpacing = '';
-    document.getElementById('dash-balance').style.fontSize = '';
-    document.getElementById('dash-balance').style.opacity = '';
-  } else {
-    document.getElementById('dash-balance').textContent = '* * * * *';
-    document.getElementById('dash-balance').style.letterSpacing = '2px';
-    document.getElementById('dash-balance').style.fontSize = '22px';
-    document.getElementById('dash-balance').style.opacity = '0.7';
-  }
-  document.getElementById('dash-income').textContent = fmt(totalInc);
-  document.getElementById('dash-expense').textContent = fmt(totalExp);
+  document.getElementById('dash-balance').innerHTML = fmtBalance(net);
+  document.getElementById('dash-income').textContent = fmtMini(totalInc);
+  document.getElementById('dash-expense').textContent = fmtMini(totalExp);
   // Loans are always total (not date-filtered since they span months)
   let toRec=0,toPay=0;
   (appData.loanSummary||[]).forEach(l=>{
@@ -1207,6 +1147,19 @@ async function submitProgressEMI() {
     } else { showToast('Error: '+(res.error||'Failed')); }
   } catch(e) { showToast('Connection error'); }
   btn.disabled = false; btn.textContent = 'Add In-Progress EMI';
+}
+
+// ── BALANCE TOGGLE ──
+function toggleBalance() {
+  balanceHidden = !balanceHidden;
+  try { localStorage.setItem('wallet_bal_hidden', balanceHidden ? '1' : '0'); } catch(e) {}
+  renderDashboard();
+  const icon = document.getElementById('bal-eye-icon');
+  if (icon) {
+    icon.innerHTML = balanceHidden
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  }
 }
 
 // ── TOAST ──
