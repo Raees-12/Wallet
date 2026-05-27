@@ -272,20 +272,18 @@ async function loadAllData(silent = false) {
 
 async function refreshFromAPI() {
   try {
-    const [expRes,incRes,loanRes,cfgRes,emiRes,emiPayRes] = await Promise.all([
-      api({action:'getExpenses',userId:currentUser.id}),
-      api({action:'getIncome',userId:currentUser.id}),
-      api({action:'getLoans',userId:currentUser.id}),
-      api({action:'getConfig',userId:currentUser.id}),
-      api({action:'getEMIs',userId:currentUser.id}),
-      api({action:'getEMIPayments',userId:currentUser.id})
-    ]);
-    if (expRes.success)    appData.expenses    = expRes.data;
-    if (incRes.success)    appData.income      = incRes.data;
-    if (loanRes.success)   { appData.loans = loanRes.data; appData.loanSummary = loanRes.summary; }
-    if (cfgRes&&cfgRes.success) appData.config = cfgRes.config;
-    if (emiRes.success)    appData.emis        = emiRes.data;
-    if (emiPayRes.success) appData.emiPayments = emiPayRes.data;
+    // Single API call instead of 6 — much faster
+    const res = await api({ action: 'getAllData', userId: currentUser.id });
+    if (!res.success) throw new Error(res.error || 'API error');
+
+    appData.expenses    = res.expenses    || [];
+    appData.income      = res.income      || [];
+    appData.loans       = res.loans       || [];
+    appData.loanSummary = res.loanSummary || [];
+    appData.config      = res.config      || {};
+    appData.emis        = res.emis        || [];
+    appData.emiPayments = res.emiPayments || [];
+
     saveCachedData(appData);
     buildMonthChips();
     buildDashMonthChips();
