@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a73e8" id="meta-theme-color">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Wallet">
+<title>Wallet</title>
+<link rel="icon" type="image/png" href="Assets/fav.png">
+<link rel="apple-touch-icon" href="Assets/fav.png">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+<!-- LOGIN -->
+<div id="login-screen" class="screen active">
+  <div class="login-logo-wrap">
+    <img id="login-logo" src="Assets/l_logo.png" class="app-logo login-logo-img" alt="Wallet">
+    <div class="login-tagline">Smart finance tracking</div>
+  </div>
+  <div class="login-card">
+    <div class="login-card-title">Welcome back</div>
+    <div class="field-group">
+      <div class="field-label">Username</div>
+      <input type="text" id="login-user" placeholder="Enter username" autocomplete="off" autocapitalize="none">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Password</div>
+      <input type="password" id="login-pass" placeholder="Enter password">
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="btn btn-primary" id="login-btn" onclick="doLogin()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Sign In
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main-screen" class="screen">
+  <div class="topbar">
+    <img id="topbar-logo" src="Assets/l_logo.png" class="app-logo topbar-logo" alt="Wallet">
+    <div class="topbar-right">
+      <span class="topbar-greeting" id="topbar-greeting"></span>
+      <div class="avatar-btn" id="topbar-avatar" onclick="openProfile()">R</div>
+    </div>
+  </div>
+
+  <div class="main-body">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="dash-filter-bar" id="dash-filter-bar">
+        <div class="dash-chip" data-type="today" onclick="setDashFilter(this)">Today</div>
+        <div class="dash-chip" data-type="week" onclick="setDashFilter(this)">This Week</div>
+        <div class="dash-chip active" data-type="month" onclick="setDashFilter(this)">This Month</div>
+        <div class="dash-chip" data-type="range" onclick="setDashFilter(this)">Custom</div>
+      </div>
+      <div class="dash-range-row" id="dash-range-row">
+        <input type="date" id="dash-from">
+        <input type="date" id="dash-to">
+        <button class="btn btn-primary btn-sm" onclick="applyDashRange()">Go</button>
+      </div>
+      <div class="balance-card">
+        <div class="balance-label" id="dash-period-label">This Month</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <div class="balance-amount" style="margin:0" id="dash-balance"><span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span></div>
+          <button id="bal-eye-btn"
+            style="background:rgba(255,255,255,.15);border:none;border-radius:8px;
+            padding:8px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;
+            -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+            min-width:36px;min-height:36px;justify-content:center"
+            onclick="toggleBalance()"
+            ontouchend="event.preventDefault();toggleBalance()">
+            <span id="bal-eye-icon" style="display:flex;align-items:center;color:rgba(255,255,255,.85)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </span>
+          </button>
+        </div>
+        <div class="balance-row">
+          <div class="balance-mini">
+            <div class="bm-icon" style="background:rgba(52,168,83,.25)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+            </div>
+            <div><div class="bm-label">Income</div><div class="bm-val" id="dash-income">₹0</div></div>
+          </div>
+          <div class="balance-mini">
+            <div class="bm-icon" style="background:rgba(234,67,53,.25)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
+            </div>
+            <div><div class="bm-label">Expenses</div><div class="bm-val" id="dash-expense">₹0</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-tile">
+          <div class="st-label">To Receive</div>
+          <div class="st-val green" id="dash-receive">₹0</div>
+          <div class="st-sub">Lent pending</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">To Pay Back</div>
+          <div class="st-val red" id="dash-owe">₹0</div>
+          <div class="st-sub">Borrowed pending</div>
+        </div>
+      </div>
+      <div class="sec-title">Recent Transactions</div>
+      <div id="dash-recent" class="entry-list"></div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div class="page" id="page-expenses">
+      <div class="page-header">
+        <div><div class="page-title">Expenses</div><div class="page-sub" id="exp-count">0 entries</div></div>
+      </div>
+      <div class="filter-bar" id="exp-filter-bar"></div>
+      <div class="page-total red" id="exp-total">₹0</div>
+      <div id="expenses-list" class="entry-list"></div>
+    </div>
+
+    <!-- INCOME -->
+    <div class="page" id="page-income">
+      <div class="page-header">
+        <div><div class="page-title">Income</div><div class="page-sub" id="inc-count">0 entries</div></div>
+      </div>
+      <div class="filter-bar" id="inc-filter-bar"></div>
+      <div class="page-total green" id="inc-total">₹0</div>
+      <div id="income-list" class="entry-list"></div>
+    </div>
+
+    <!-- LOANS -->
+    <div class="page" id="page-loans">
+      <div class="page-header"><div class="page-title">Loans</div></div>
+      <div class="loan-summary-row">
+        <div class="loan-tile"><div class="lt-label">To Receive</div><div class="lt-val green" id="loan-receive">₹0</div></div>
+        <div class="loan-tile"><div class="lt-label">To Pay Back</div><div class="lt-val red" id="loan-pay">₹0</div></div>
+      </div>
+      <div class="sec-title">Active Loans</div>
+      <div id="loans-list"></div>
+    </div>
+
+    <!-- EMI PAGE -->
+    <div class="page" id="page-emis">
+      <div class="page-header">
+        <div><div class="page-title">EMI</div><div class="page-sub" id="emi-active-count">0 active</div></div>
+      </div>
+      <div class="stats-grid" style="margin-bottom:14px">
+        <div class="stat-tile">
+          <div class="st-label">Total Debt Remaining</div>
+          <div class="st-val red" id="emi-total-debt">₹0</div>
+          <div class="st-sub">All active EMIs</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">Due This Month</div>
+          <div class="st-val blue" id="emi-due-month">₹0</div>
+          <div class="st-sub">Upcoming payments</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">Active EMIs</div>
+          <div class="st-val green" id="emi-active-num">0</div>
+          <div class="st-sub">Running loans</div>
+        </div>
+        <div class="stat-tile">
+          <div class="st-label">Paid This Month</div>
+          <div class="st-val green" id="emi-paid-month">₹0</div>
+          <div class="st-sub">Current month</div>
+        </div>
+      </div>
+      <div id="emis-list"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span class="nav-label">Dashboard</span>
+    </div>
+    <div class="nav-item" data-page="expenses" onclick="switchPage('expenses')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
+      <span class="nav-label">Expenses</span>
+    </div>
+    <div class="nav-item" data-page="income" onclick="switchPage('income')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <span class="nav-label">Income</span>
+    </div>
+    <div class="nav-item" data-page="loans" onclick="switchPage('loans')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="nav-label">Loans</span>
+    </div>
+    <div class="nav-item" data-page="emis" onclick="switchPage('emis')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+      <span class="nav-label">EMI</span>
+    </div>
+  </nav>
+  <button class="fab" onclick="openAddModal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+</div>
+
+<!-- ADD MODAL -->
+<div class="overlay" id="add-overlay" onclick="closeOverlay('add-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Add Entry</div>
+    <div class="sheet-tabs" id="add-tabs">
+      <div class="sheet-tab active" onclick="switchAddTab('expense')">Expense</div>
+      <div class="sheet-tab" onclick="switchAddTab('income')">Income</div>
+      <div class="sheet-tab" onclick="switchAddTab('loan')">Loan</div>
+    </div>
+    <!-- Expense -->
+    <div id="add-expense">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Date</div><input type="date" id="exp-date"></div>
+        <div class="form-group"><div class="field-label">Amount ₹</div><input type="number" id="exp-amount" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Category</div><select id="exp-cat"></select></div>
+      <div class="form-group"><div class="field-label">Description</div><input type="text" id="exp-desc" placeholder="What did you spend on?"></div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="exp-pm"><option>UPI</option><option>Cash</option><option>Card</option><option>Net Banking</option><option>Wallet</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="exp-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" onclick="submitExpense()">Add Expense</button>
+    </div>
+    <!-- Income -->
+    <div id="add-income" style="display:none">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Date</div><input type="date" id="inc-date"></div>
+        <div class="form-group"><div class="field-label">Amount ₹</div><input type="number" id="inc-amount" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Category</div><select id="inc-cat"></select></div>
+      <div class="form-group"><div class="field-label">Description</div><input type="text" id="inc-desc" placeholder="Source of income"></div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="inc-pm"><option>Net Banking</option><option>UPI</option><option>Cash</option><option>Cheque</option><option>Wallet</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="inc-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" onclick="submitIncome()">Add Income</button>
+    </div>
+    <!-- Loan -->
+    <div id="add-loan" style="display:none">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Date</div><input type="date" id="loan-date"></div>
+        <div class="form-group"><div class="field-label">Amount ₹</div><input type="number" id="loan-amount" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Type</div>
+        <select id="loan-type">
+          <option value="Lent">Lent (I gave money)</option>
+          <option value="Borrowed">Borrowed (I took money)</option>
+        </select>
+      </div>
+      <div class="form-group"><div class="field-label">Person Name</div><input type="text" id="loan-person" placeholder="Who is involved?"></div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="loan-pm"><option>UPI</option><option>Cash</option><option>Net Banking</option><option>Cheque</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="loan-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" onclick="submitLoan()">Add Loan</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOAN ACTION SHEET -->
+<div class="overlay" id="loan-action-overlay" onclick="closeOverlay('loan-action-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="la-header" id="la-header"></div>
+    <div class="sheet-tabs" id="la-tabs">
+      <div class="sheet-tab active" onclick="switchLaTab('repay')">Repay / Collect</div>
+      <div class="sheet-tab" onclick="switchLaTab('history')">History</div>
+    </div>
+    <div id="la-repay">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Date</div><input type="date" id="la-date"></div>
+        <div class="form-group"><div class="field-label">Amount ₹</div><input type="number" id="la-amount" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="la-pm"><option>UPI</option><option>Cash</option><option>Net Banking</option><option>Cheque</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="la-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" id="la-submit-btn" onclick="submitLoanAction()">Submit</button>
+    </div>
+    <div id="la-history" style="display:none">
+      <div id="la-history-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE SHEET -->
+<div class="overlay" id="profile-overlay" onclick="closeOverlay('profile-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Profile</div>
+    <div class="profile-user-block">
+      <div class="profile-avatar" id="profile-avatar-big">R</div>
+      <div>
+        <div class="profile-name" id="profile-name">User</div>
+        <div class="profile-email" id="profile-email"></div>
+      </div>
+    </div>
+    <div class="profile-sec-title">Tools</div>
+    <div class="profile-row" onclick="openReport()">
+      <div class="profile-row-left">
+        <div class="profile-row-icon" style="background:rgba(26,115,232,.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <div><div class="profile-row-label">Reports</div><div class="profile-row-sub">PDF & CSV export</div></div>
+      </div>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+    <div class="profile-row" onclick="openConfig()">
+      <div class="profile-row-left">
+        <div class="profile-row-icon" style="background:rgba(52,168,83,.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <div><div class="profile-row-label">Configuration</div><div class="profile-row-sub">Manage categories</div></div>
+      </div>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+    <div class="profile-sec-title">Preferences</div>
+    <div class="profile-row" style="cursor:default">
+      <div class="profile-row-left">
+        <div class="profile-row-icon" style="background:rgba(249,171,0,.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </div>
+        <div><div class="profile-row-label">Dark Mode</div><div class="profile-row-sub">Switch theme</div></div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="dark-toggle" onchange="toggleTheme(this)"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="profile-sec-title">Account</div>
+    <div class="profile-row" onclick="doLogout()">
+      <div class="profile-row-left">
+        <div class="profile-row-icon" style="background:rgba(217,48,37,.1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+        <div><div class="profile-row-label" style="color:var(--red)">Log Out</div><div class="profile-row-sub">Sign out</div></div>
+      </div>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG SHEET -->
+<div class="overlay" id="config-overlay" onclick="closeOverlay('config-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Configuration</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Uncheck to hide a category. Add your own below each section.</p>
+    <div id="config-expense-section" class="config-section"></div>
+    <div id="config-income-section" class="config-section"></div>
+    <div id="config-loan-section" class="config-section"></div>
+    <div id="config-emi-section" class="config-section"></div>
+    <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+  </div>
+</div>
+
+<!-- REPORT SHEET -->
+<div class="overlay" id="report-overlay" onclick="closeOverlay('report-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Reports</div>
+    <div class="report-type-row">
+      <div class="report-chip active" onclick="setReportType(this,'daily')">Today</div>
+      <div class="report-chip" onclick="setReportType(this,'weekly')">This Week</div>
+      <div class="report-chip" onclick="setReportType(this,'monthly')">This Month</div>
+      <div class="report-chip" onclick="setReportType(this,'range')">Custom</div>
+    </div>
+    <div id="report-range-row" style="display:none;margin-bottom:14px;">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">From</div><input type="date" id="report-from"></div>
+        <div class="form-group"><div class="field-label">To</div><input type="date" id="report-to"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-bottom:10px" onclick="generateReport()">Generate Report</button>
+    <div class="report-actions" id="report-export-btns" style="display:none">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Export CSV
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="exportPDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Export PDF
+      </button>
+    </div>
+    <div class="report-output" id="report-output">
+      <div class="report-placeholder">Select a period and generate your report</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- EMI ACTION SHEET -->
+<div class="overlay" id="emi-action-overlay" onclick="closeOverlay('emi-action-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="la-header" id="emi-action-header"></div>
+    <div class="sheet-tabs" id="emi-action-tabs" style="margin-bottom:16px">
+      <div class="sheet-tab active" onclick="switchEMITab('pay')">Pay / Miss</div>
+      <div class="sheet-tab" onclick="switchEMITab('history')">History</div>
+    </div>
+    <div id="emi-pay-form">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Paid Date</div><input type="date" id="emi-pay-date"></div>
+        <div class="form-group"><div class="field-label">Amount ₹</div><input type="number" id="emi-pay-amount" placeholder="0" inputmode="decimal" readonly></div>
+      </div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="emi-pay-mode"><option>UPI</option><option>Net Banking</option><option>Auto Debit</option><option>Cash</option><option>Card</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="emi-pay-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" id="emi-pay-btn" onclick="submitEMIPay()">Pay EMI</button>
+      <button class="btn btn-danger" id="emi-miss-btn" onclick="submitEMIMiss()" style="margin-top:10px">Mark as Missed</button>
+    </div>
+    <div id="emi-history" style="display:none">
+      <div id="emi-history-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM DIALOG -->
+<div class="overlay" id="confirm-overlay" style="align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px;padding:24px 22px;
+    width:calc(100% - 48px);max-width:340px;border:1px solid var(--border);
+    box-shadow:var(--shadow-lg);animation:fadeUp .25s ease">
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">Confirm</div>
+    <div id="confirm-msg" style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:20px;white-space:pre-line"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="confirmCancel()" style="flex:1;padding:12px;border-radius:10px;
+        border:1.5px solid var(--border);background:var(--surface2);color:var(--text);
+        font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+      <button onclick="confirmOK()" style="flex:1;padding:12px;border-radius:10px;
+        border:none;background:var(--red);color:#fff;
+        font-size:14px;font-weight:700;cursor:pointer">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENTRY DETAIL OVERLAY -->
+<div class="overlay" id="entry-detail-overlay" onclick="closeOverlay('entry-detail-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div id="entry-detail-header"></div>
+    <div style="height:1px;background:var(--border);margin:14px 0"></div>
+    <div id="entry-detail-body"></div>
+    <div id="entry-edit-form" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ADD EMI OVERLAY -->
+<div class="overlay" id="emi-add-overlay" onclick="closeOverlay('emi-add-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Add New EMI</div>
+    <div class="sheet-tabs" id="emi-add-tabs" style="margin-bottom:16px">
+      <div class="sheet-tab active" onclick="switchEMIAddTab('new')">New EMI</div>
+      <div class="sheet-tab" onclick="switchEMIAddTab('progress')">Already In Progress</div>
+    </div>
+
+    <!-- NEW EMI FORM -->
+    <div id="add-emi-form">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Start Date</div><input type="date" id="new-emi-start"></div>
+        <div class="form-group"><div class="field-label">First Payment Date</div><input type="date" id="new-emi-paid"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Category</div><select id="new-emi-cat"></select></div>
+      <div class="form-group"><div class="field-label">Description</div><input type="text" id="new-emi-desc" placeholder="e.g. Laptop, Car, Bike"></div>
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Total Amount ₹</div><input type="number" id="new-emi-total" placeholder="0" inputmode="decimal"></div>
+        <div class="form-group"><div class="field-label">EMI Amount ₹</div><input type="number" id="new-emi-amount" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Total EMIs</div><input type="number" id="new-emi-count" placeholder="12" inputmode="numeric"></div>
+        <div class="form-group"><div class="field-label">Bill Day (1-31)</div><input type="number" id="new-emi-billday" placeholder="e.g. 12" min="1" max="31" inputmode="numeric"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="new-emi-pm"><option>UPI</option><option>Net Banking</option><option>Auto Debit</option><option>Cash</option><option>Card</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="new-emi-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" onclick="submitNewEMI()">Add EMI</button>
+    </div>
+
+    <!-- ALREADY IN PROGRESS FORM -->
+    <div id="add-emi-progress-form" style="display:none">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+        Use this if you started the EMI before using this app. Enter the current state.
+      </p>
+      <div class="form-group"><div class="field-label">Category</div><select id="prog-emi-cat"></select></div>
+      <div class="form-group"><div class="field-label">Description</div><input type="text" id="prog-emi-desc" placeholder="e.g. Laptop, Car, Bike"></div>
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Total Amount ₹</div><input type="number" id="prog-emi-total" placeholder="0" inputmode="decimal"></div>
+        <div class="form-group"><div class="field-label">EMI Amount ₹</div><input type="number" id="prog-emi-amount" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Total EMIs</div><input type="number" id="prog-emi-total-count" placeholder="12" inputmode="numeric"></div>
+        <div class="form-group"><div class="field-label">Already Paid EMIs</div><input type="number" id="prog-emi-paid" placeholder="4" inputmode="numeric"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Original Start Date</div><input type="date" id="prog-emi-start"></div>
+        <div class="form-group"><div class="field-label">Bill Day (1-31)</div><input type="number" id="prog-emi-billday" placeholder="e.g. 12" min="1" max="31" inputmode="numeric"></div>
+      </div>
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">Next Bill Date</div><input type="date" id="prog-emi-next-bill"></div>
+        <div class="form-group"><div class="field-label">Next Due Date</div><input type="date" id="prog-emi-next-due"></div>
+      </div>
+      <div class="form-group"><div class="field-label">Payment Mode</div>
+        <select id="prog-emi-pm"><option>UPI</option><option>Net Banking</option><option>Auto Debit</option><option>Cash</option><option>Card</option></select>
+      </div>
+      <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="prog-emi-remarks" placeholder="Optional"></div>
+      <button class="btn btn-primary" onclick="submitProgressEMI()">Add In-Progress EMI</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+
+<!-- PWA Install Banner -->
+<div id="pwa-install-bar" style="display:none;position:fixed;bottom:calc(var(--nav-h) + 12px);
+  left:12px;right:12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:12px 16px;box-shadow:var(--shadow-lg);
+  display:none;align-items:center;gap:12px;z-index:150;">
+  <img src="Assets/fav.png" style="width:36px;height:36px;border-radius:10px;object-fit:contain">
+  <div style="flex:1;min-width:0">
+    <div style="font-size:13px;font-weight:700;color:var(--text)">Install Wallet</div>
+    <div style="font-size:11px;color:var(--text2)">Add to home screen for quick access</div>
+  </div>
+  <button id="pwa-install-btn" style="background:var(--blue);color:#fff;border:none;
+    border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;
+    white-space:nowrap">Install</button>
+  <button onclick="document.getElementById('pwa-install-bar').style.display='none'"
+    style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;
+    padding:0 4px;line-height:1">×</button>
+</div>
+
+<script>
+// ── Service Worker Registration ──
+if ('serviceWorker' in navigator) {
+  // Only register SW on GitHub Pages, not in dev/preview environments
+  const isGitHubPages = location.hostname === 'raees-12.github.io';
+  if (isGitHubPages) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/Wallet/sw.js')
+        .then(reg => console.log('SW registered:', reg.scope))
+        .catch(err => console.warn('SW failed:', err));
+    });
+  }
+}
+
+// ── Fix 3: Theme functions (applyTheme + toggleTheme) ──
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  saveTheme(theme);
+  // Update logos
+  const isDark = theme === 'dark';
+  const logoSrc = isDark ? 'Assets/d_logo.png' : 'Assets/l_logo.png';
+  const topbarLogo = document.getElementById('topbar-logo');
+  const loginLogo  = document.getElementById('login-logo');
+  if (topbarLogo) topbarLogo.src = logoSrc;
+  if (loginLogo)  loginLogo.src  = logoSrc;
+  // Sync the toggle checkbox
+  const tog = document.getElementById('dark-toggle');
+  if (tog) tog.checked = isDark;
+  // Update meta theme-color
+  const meta = document.getElementById('meta-theme-color');
+  if (meta) meta.content = isDark ? '#13131a' : '#1a73e8';
+}
+function toggleTheme(checkbox) {
+  applyTheme(checkbox.checked ? 'dark' : 'light');
+}
+
+// ── PWA Install Prompt ──
+let _installPrompt = null;
+const installBar = document.getElementById('pwa-install-bar');
+const installBtn = document.getElementById('pwa-install-btn');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  // Show install bar after a short delay
+  setTimeout(() => {
+    if (installBar) installBar.style.display = 'flex';
+  }, 3000);
+});
+
+if (installBtn) {
+  installBtn.addEventListener('click', async () => {
+    if (!_installPrompt) return;
+    _installPrompt.prompt();
+    const result = await _installPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      installBar.style.display = 'none';
+      _installPrompt = null;
+    }
+  });
+}
+
+// Hide bar if already installed
+window.addEventListener('appinstalled', () => {
+  if (installBar) installBar.style.display = 'none';
+  _installPrompt = null;
+});
+
+// Update theme-color on dark mode toggle
+const _origToggleTheme = window.toggleTheme;
+</script>
+</body>
+</html>
