@@ -206,17 +206,6 @@ function clearSession() {
 function saveTheme(t) { try{localStorage.setItem('wallet_theme',t);}catch(e){} }
 function loadTheme() { try{return localStorage.getItem('wallet_theme')||'light';}catch(e){return 'light';} }
 
-function showScreen(screenId) {
-  document.querySelectorAll('.screen').forEach(screen => {
-    screen.style.display = 'none';
-  });
-
-  const target = document.getElementById(screenId);
-  if (target) {
-    target.style.display = 'block';
-  }
-}
-
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   balanceHidden = true; // always start hidden on every open
