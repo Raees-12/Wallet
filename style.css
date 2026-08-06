@@ -746,11 +746,20 @@ body.no-scroll{overflow:hidden;}
 /* ══════════════════════════════════════════════
    WIDGET PREVIEWS
    ══════════════════════════════════════════════ */
-.widget-stage{display:flex;justify-content:center;padding:6px 0 4px;}
-.wgt{width:100%;max-width:330px;border-radius:24px;padding:20px;color:#fff;
-  position:relative;overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.28);
-  animation:wgtIn .32s cubic-bezier(.32,.72,0,1);}
-@keyframes wgtIn{from{opacity:0;transform:scale(.96) translateY(6px);}to{opacity:1;transform:none;}}
+/* Swipeable rail — one card per screen, native scroll snapping */
+.widget-rail{display:flex;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;-ms-overflow-style:none;
+  margin:0 -16px;padding:6px 0 4px;}
+.widget-rail::-webkit-scrollbar{display:none;}
+.widget-slide{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;
+  padding:0 16px;box-sizing:border-box;}
+.widget-caption{text-align:center;font-size:11px;font-weight:700;color:var(--text3);
+  letter-spacing:.8px;text-transform:uppercase;margin-top:11px;}
+.swipe-hint{font-size:10px;font-weight:600;color:var(--text3);
+  letter-spacing:.4px;text-transform:none;margin-left:6px;opacity:.75;}
+.wgt{width:100%;border-radius:24px;padding:20px;color:#fff;box-sizing:border-box;
+  position:relative;overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.28);}
 .wgt::after{content:'';position:absolute;top:-60%;right:-30%;width:80%;height:180%;
   background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%);pointer-events:none;}
 .wgt-balance{background:linear-gradient(135deg,var(--blue-light),var(--blue-dark2));}
@@ -807,3 +816,17 @@ body.no-scroll{overflow:hidden;}
   font-size:10.5px;line-height:1.7;color:var(--text3);
   white-space:pre-wrap;word-break:break-word;margin:10px 0 0;
   max-height:190px;overflow-y:auto;-webkit-user-select:text;user-select:text;}
+
+/* Numbered install steps */
+.wsteps{display:flex;flex-direction:column;gap:16px;}
+.wstep{display:flex;gap:13px;align-items:flex-start;}
+.wstep-num{width:25px;height:25px;border-radius:50%;flex-shrink:0;
+  background:var(--blue);color:#fff;font-size:12px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.wstep-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.wstep-body{font-size:12px;color:var(--text2);line-height:1.6;}
+.wstep-body b{color:var(--text);font-weight:700;}
+.wnote{background:rgba(249,171,0,.09);border:1px solid rgba(249,171,0,.25);
+  border-radius:14px;padding:13px 15px;font-size:11.5px;color:var(--text2);
+  line-height:1.65;margin-top:12px;}
+.wnote strong{display:block;color:var(--text);font-size:12.5px;margin-bottom:4px;}
