@@ -397,6 +397,33 @@
       </div>
 
       <div class="settings-card">
+        <div class="settings-row" onclick="openSubPage('widgets')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+          </div>
+          <div class="settings-row-label">Widgets &amp; Shortcuts<span class="settings-row-hint">Quick actions on your home screen</span></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-row" onclick="openFeedback('bug')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2M19 13h-3M8 13H5M19 19l-3-2M5 19l3-2M9 6V5a3 3 0 0 1 6 0v1"/></svg>
+          </div>
+          <div class="settings-row-label">Report a bug<span class="settings-row-hint">Something not working right?</span></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="openFeedback('feature')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2l2.4 6.4L21 9.6l-4.8 4.5L17.5 21 12 17.6 6.5 21l1.3-6.9L3 9.6l6.6-1.2z"/></svg>
+          </div>
+          <div class="settings-row-label">Suggest a feature<span class="settings-row-hint">Tell me what Wallet is missing</span></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="settings-card">
         <div class="settings-row" onclick="syncNow()">
           <div class="settings-chip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -544,6 +571,95 @@
           </label>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ─── WIDGETS & SHORTCUTS ─── -->
+  <div class="spage" id="spage-widgets">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Widgets</h1>
+      </div>
+
+      <div class="settings-section-label">Preview</div>
+      <div class="widget-stage" id="widget-stage"></div>
+      <div class="widget-dots" id="widget-dots"></div>
+
+      <div class="settings-section-label" style="margin-top:22px">Home screen shortcuts</div>
+      <div class="settings-note" style="margin-top:0" id="widget-howto"></div>
+      <div class="settings-card">
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip" style="background:rgba(217,48,37,.1);border-color:rgba(217,48,37,.2);color:var(--red)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+          <div class="settings-row-label">Add Expense<span class="settings-row-hint">Opens straight to the expense form</span></div>
+        </div>
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip" style="background:rgba(52,168,83,.1);border-color:rgba(52,168,83,.2);color:var(--green)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+          <div class="settings-row-label">Add Income<span class="settings-row-hint">Opens straight to the income form</span></div>
+        </div>
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2);color:#8b5cf6">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
+          <div class="settings-row-label">Loans<span class="settings-row-hint">Jumps to the loans page</span></div>
+        </div>
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip" style="background:rgba(var(--blue-rgb),.1);border-color:rgba(var(--blue-rgb),.2);color:var(--blue)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <div class="settings-row-label">Reports<span class="settings-row-hint">Opens the report generator</span></div>
+        </div>
+      </div>
+
+      <div class="widget-callout" id="widget-callout"></div>
+    </div>
+  </div>
+
+  <!-- ─── FEEDBACK ─── -->
+  <div class="spage" id="spage-feedback">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title" id="fb-title">Report a bug</h1>
+      </div>
+      <div class="settings-note" style="margin-top:-8px" id="fb-intro"></div>
+
+      <div class="settings-section-label" id="fb-cat-label">What area?</div>
+      <div class="fb-chips" id="fb-chips"></div>
+
+      <div class="settings-section-label" style="margin-top:18px">Details</div>
+      <div class="form-group">
+        <input type="text" id="fb-subject" placeholder="One-line summary" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <textarea id="fb-body" rows="6" placeholder=""></textarea>
+      </div>
+
+      <div class="settings-card" style="margin-top:4px">
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8"/></svg>
+          </div>
+          <div class="settings-row-label">Attach device info<span class="settings-row-hint">Version, theme, browser, last sync</span></div>
+          <label class="toggle"><input type="checkbox" id="fb-diag" checked onchange="renderDiag()"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <pre class="fb-diag" id="fb-diag-preview"></pre>
+
+      <button class="btn btn-primary" style="margin-top:14px" onclick="sendFeedback()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Send
+      </button>
+      <button class="btn btn-ghost" style="margin-top:8px" onclick="copyFeedback()">Copy to clipboard instead</button>
+      <div class="settings-note" style="margin-top:12px">Sending opens your email app with everything filled in — nothing leaves the device until you hit send there.</div>
     </div>
   </div>
 
