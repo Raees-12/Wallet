@@ -121,16 +121,30 @@
       <div class="donut-wrap">
         <svg class="donut" id="summary-donut" viewBox="0 0 200 200"></svg>
         <div class="donut-center">
-          <div class="donut-period" id="summary-period">This month</div>
+          <button class="donut-period-btn" onclick="openDatePicker()">
+            <span id="summary-period">This month</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
           <div class="donut-total" id="summary-total">₹0</div>
           <div class="donut-count" id="summary-count">0 entries</div>
         </div>
       </div>
-      <div class="segmented seg-inline">
-        <div class="segment active" onclick="setSummaryType('expense')">Expenses</div>
-        <div class="segment" onclick="setSummaryType('income')">Income</div>
+
+      <div class="fchip-row">
+        <div class="fchip" onclick="openTypeSheet()">
+          <span id="chip-type">Expenses</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="fchip" onclick="openPeriodSheet()">
+          <span id="chip-period">Monthly</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="fchip" onclick="openCatFilter()">
+          <span id="chip-cats">All categories</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
-      <div class="filter-bar" id="summary-filter-bar"></div>
+
       <div id="summary-breakdown"></div>
     </div>
 
@@ -736,6 +750,52 @@
     </div>
   </div>
 
+</div>
+
+<!-- DATE PICKER SHEET -->
+<div class="overlay" id="datepick-overlay" onclick="closeOverlay('datepick-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title center">Select date</div>
+    <div class="year-row" id="dp-years"></div>
+    <div class="month-grid" id="dp-months"></div>
+    <div class="dp-tip">Tip: pick any month — it works whether or not you spent that month.</div>
+  </div>
+</div>
+
+<!-- TYPE SHEET -->
+<div class="overlay" id="type-overlay" onclick="closeOverlay('type-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title center">Type</div>
+    <div class="opt-list" id="type-opts"></div>
+  </div>
+</div>
+
+<!-- TIME PERIOD SHEET -->
+<div class="overlay" id="period-overlay" onclick="closeOverlay('period-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title center">Time period</div>
+    <div class="opt-list" id="period-opts"></div>
+    <div id="period-custom" style="display:none;margin-top:12px">
+      <div class="form-2col">
+        <div class="form-group"><div class="field-label">From</div><input type="date" id="sum-from"></div>
+        <div class="form-group"><div class="field-label">To</div><input type="date" id="sum-to"></div>
+      </div>
+      <button class="btn btn-primary" onclick="applyCustomPeriod()">Apply range</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY FILTER SHEET -->
+<div class="overlay" id="catfilter-overlay" onclick="closeOverlay('catfilter-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title center">Categories</div>
+    <div class="catpick-grid" id="catpick-grid"></div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="applyCatFilter()">Confirm</button>
+  </div>
 </div>
 
 <!-- CATEGORY ENTRIES SHEET -->
