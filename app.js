@@ -476,6 +476,11 @@ function resetAppState() {
   summaryAnchor   = { y: new Date().getFullYear(), m: new Date().getMonth() };
   summaryCats     = null;
   summaryCustom   = { from: null, to: null };
+  summarySel      = null;
+  anaPeriod       = 'monthly';
+  anaSelected     = BUCKET_COUNT - 1;
+  netUnit         = 'cur';
+  anaCalDay       = null;
   dashFilterType  = 'month';
   dashFilterRange = { from: null, to: null };
   showSettledLoans   = false;
@@ -488,7 +493,8 @@ function resetAppState() {
   // Close anything left open from the previous account
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
    'entry-detail-overlay','add-overlay','emi-add-overlay','cat-entries-overlay',
-   'datepick-overlay','type-overlay','period-overlay','catfilter-overlay'].forEach(id => {
+   'datepick-overlay','type-overlay','period-overlay','catfilter-overlay',
+   'anaperiod-overlay','day-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   // Reset dashboard chips back to "This Month"
@@ -2796,6 +2802,8 @@ let summaryAnchor = { y: new Date().getFullYear(), m: new Date().getMonth() };
 let summaryCats   = null;                    // null = all categories
 let summaryCustom = { from: null, to: null };
 let _pendingCats  = null;                    // working copy while the sheet is open
+let summarySel    = null;                    // highlighted category, null = show all
+const MAX_SLICES  = 7;                       // beyond this the tail collapses into "Other"
 
 const PERIOD_OPTS = [
   { id:'monthly',   label:'Monthly',        note:'Default' },
@@ -2905,11 +2913,19 @@ function renderSummary() {
   });
   const groups = [...map.values()].sort((a, b) => b.amt - a.amt);
 
-  document.getElementById('summary-total').textContent  = fmt(total);
-  document.getElementById('summary-count').textContent  = rows.length + (rows.length === 1 ? ' entry' : ' entries');
-  document.getElementById('summary-period').textContent = summaryPeriodLabel();
+  // Keep the selection valid if the data changed underneath it
+  if (summarySel && !groups.some(g => g.cat === summarySel)) summarySel = null;
 
-  // Chip labels
+  const selected = summarySel ? groups.find(g => g.cat === summarySel) : null;
+  document.getElementById('summary-total').textContent  = fmt(selected ? selected.amt : total);
+  document.getElementById('summary-count').textContent  = selected
+    ? selected.count + (selected.count === 1 ? ' entry' : ' entries')
+    : rows.length + (rows.length === 1 ? ' entry' : ' entries');
+
+  const periodEl = document.getElementById('summary-period');
+  periodEl.textContent = selected ? selected.cat : summaryPeriodLabel();
+  document.getElementById('summary-period-btn').classList.toggle('is-cat', !!selected);
+
   document.getElementById('chip-type').textContent   = isExp ? 'Expenses' : 'Income';
   document.getElementById('chip-period').textContent = PERIOD_OPTS.find(p => p.id === summaryPeriod).label;
   document.getElementById('chip-cats').textContent   =
@@ -2927,8 +2943,10 @@ function renderSummary() {
   el.innerHTML = groups.map((g, i) => {
     const pctRaw = total > 0 ? (g.amt / total * 100) : 0;
     const pct = pctRaw >= 10 ? pctRaw.toFixed(1) : pctRaw.toFixed(2);
-    return `<div class="sum-row" style="animation-delay:${Math.min(i,8) * 35}ms"
-        onclick="openCatEntries('${esc(g.cat).replace(/'/g,"\\'")}')">
+    const on  = summarySel === g.cat;
+    return `<div class="sum-row ${on ? 'sel' : ''} ${summarySel && !on ? 'dim' : ''}"
+        style="animation-delay:${Math.min(i,8) * 35}ms"
+        onclick="tapCategory('${esc(g.cat).replace(/'/g,"\\'")}')">
       <div class="sum-icon" style="border-color:${catColor(g.cat)};color:${catColor(g.cat)}">
         ${esc(g.cat.charAt(0).toUpperCase())}
       </div>
@@ -2939,26 +2957,73 @@ function renderSummary() {
   }).join('');
 }
 
-// Segmented ring — one rounded arc per category, with a gap between each
+// First tap highlights the slice, second tap opens the entries
+function tapCategory(cat) {
+  if (summarySel === cat) { openCatEntries(cat); return; }
+  summarySel = cat;
+  buzz(8);
+  renderSummary();
+}
+
+function clearCategorySel() {
+  if (!summarySel) { openDatePicker(); return; }
+  summarySel = null;
+  renderSummary();
+}
+
+// Segmented ring. With lots of categories a plain 1-arc-per-category ring turns
+// into unreadable slivers, so the long tail collapses into a single "Other" arc,
+// gaps shrink as the count rises, and every arc keeps a minimum visible length.
 function drawDonut(groups, total) {
   const svg = document.getElementById('summary-donut');
   if (!svg) return;
   const R = 78, CX = 100, CY = 100, C = 2 * Math.PI * R;
-  const GAP = groups.length > 1 ? 9 : 0;
 
   if (!total || !groups.length) {
     svg.innerHTML = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
       stroke="var(--border)" stroke-width="20"/>`;
     return;
   }
+
+  // Collapse everything past MAX_SLICES into one grey arc
+  let slices = groups;
+  if (groups.length > MAX_SLICES) {
+    const head = groups.slice(0, MAX_SLICES - 1);
+    const tail = groups.slice(MAX_SLICES - 1);
+    slices = [...head, {
+      cat: 'Other', amt: tail.reduce((s, g) => s + g.amt, 0),
+      count: tail.reduce((s, g) => s + g.count, 0), _other: true
+    }];
+  }
+
+  const n    = slices.length;
+  const GAP  = n > 1 ? Math.max(3, 10 - n * 0.7) : 0;   // tighter gaps as slices multiply
+  const MINL = 5;                                        // never let a slice vanish
+  const usable = C - GAP * n;
+
+  // Scale raw shares into the usable arc, then lift any sliver up to MINL
+  let lens = slices.map(g => (g.amt / total) * usable);
+  const deficit = lens.reduce((s, l) => s + Math.max(0, MINL - l), 0);
+  if (deficit > 0) {
+    const spare = lens.reduce((s, l) => s + Math.max(0, l - MINL), 0);
+    if (spare > 0) {
+      lens = lens.map(l => l < MINL ? MINL : l - (l - MINL) * (deficit / spare));
+    }
+  }
+
   let offset = 0;
-  svg.innerHTML = groups.map(g => {
-    const len = Math.max(0, (g.amt / total) * C - GAP);
+  svg.innerHTML = slices.map((g, i) => {
+    const len   = Math.max(0.5, lens[i]);
+    const dim   = summarySel && g.cat !== summarySel;
+    const color = g._other ? 'var(--text3)' : catColor(g.cat);
     const el = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
-      stroke="${catColor(g.cat)}" stroke-width="20" stroke-linecap="round"
+      stroke="${color}" stroke-width="${summarySel === g.cat ? 23 : 20}" stroke-linecap="round"
+      opacity="${dim ? .2 : 1}"
       stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}"
-      transform="rotate(-90 ${CX} ${CY})"><title>${esc(g.cat)}</title></circle>`;
-    offset += (g.amt / total) * C;
+      transform="rotate(-90 ${CX} ${CY})"
+      style="cursor:pointer" onclick="tapCategory('${esc(g.cat).replace(/'/g,"\\'")}')"
+      ><title>${esc(g.cat)} · ${fmt(g.amt)}</title></circle>`;
+    offset += len + GAP;
     return el;
   }).join('');
 }
@@ -3031,6 +3096,7 @@ function optRow(o, active, onclick) {
 function setSummaryType(t) {
   summaryType = t;
   summaryCats = null;              // categories differ between types
+  summarySel  = null;
   renderSummary();
   closeOverlay('type-overlay');
 }
@@ -3136,22 +3202,83 @@ function openCatEntries(cat) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// ANALYTICS — 6-month bars, net, calendar heatmap
+// ANALYTICS — bucketed bars, net chart, calendar
 // ══════════════════════════════════════════════════════════════
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ANA_PERIODS = [
+  { id:'weekly',    label:'Weekly' },
+  { id:'monthly',   label:'Monthly', note:'Default' },
+  { id:'quarterly', label:'Quarterly' },
+  { id:'yearly',    label:'Yearly' }
+];
+const BUCKET_COUNT = 6;
 
-function monthBuckets(n) {
+let anaPeriod   = 'monthly';
+let anaSelected = BUCKET_COUNT - 1;   // index of the highlighted bucket
+let netUnit     = 'cur';              // 'cur' | 'pct'
+let anaCalDay   = null;               // selected calendar day
+
+function openAnaPeriodSheet() {
+  document.getElementById('anaperiod-opts').innerHTML = ANA_PERIODS
+    .map(o => optRow(o, anaPeriod === o.id, `setAnaPeriod('${o.id}')`)).join('');
+  document.getElementById('anaperiod-overlay').classList.add('open');
+}
+
+function setAnaPeriod(p) {
+  anaPeriod   = p;
+  anaSelected = BUCKET_COUNT - 1;
+  anaCalDay   = null;
+  document.getElementById('chip-ana-period').textContent =
+    ANA_PERIODS.find(x => x.id === p).label;
+  renderAnalytics();
+  closeOverlay('anaperiod-overlay');
+}
+
+function setNetUnit(u) {
+  netUnit = u;
+  document.getElementById('unit-cur').classList.toggle('active', u === 'cur');
+  document.getElementById('unit-pct').classList.toggle('active', u === 'pct');
+  renderAnalytics();
+}
+
+function selectBucket(i) {
+  anaSelected = i;
+  anaCalDay = null;
+  renderAnalytics();
+}
+
+// Builds the last N buckets for whichever granularity is active
+function anaBuckets() {
   const now = new Date();
   const out = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    out.push({
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`,
-      label: MONTH_ABBR[d.getMonth()],
-      from: d.getTime(),
-      to: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime(),
-      income: 0, expense: 0
-    });
+  for (let i = BUCKET_COUNT - 1; i >= 0; i--) {
+    let from, to, label, sub = '';
+    if (anaPeriod === 'weekly') {
+      const day = (now.getDay() + 6) % 7;
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day - i * 7);
+      from = monday;
+      to   = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 23,59,59,999);
+      label = `${from.getDate()} ${MONTH_ABBR[from.getMonth()]}`;
+    } else if (anaPeriod === 'quarterly') {
+      const qTotal = Math.floor(now.getMonth() / 3) + now.getFullYear() * 4 - i;
+      const qy = Math.floor(qTotal / 4), qi = qTotal % 4;
+      from = new Date(qy, qi * 3, 1);
+      to   = new Date(qy, qi * 3 + 3, 0, 23,59,59,999);
+      label = `Q${qi + 1}`;
+      sub = `'${String(qy).slice(2)}`;
+    } else if (anaPeriod === 'yearly') {
+      const y = now.getFullYear() - i;
+      from = new Date(y, 0, 1);
+      to   = new Date(y, 11, 31, 23,59,59,999);
+      label = String(y);
+    } else {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      from = d;
+      to   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23,59,59,999);
+      label = MONTH_ABBR[d.getMonth()];
+      sub = `'${String(d.getFullYear()).slice(2)}`;
+    }
+    out.push({ from: from.getTime(), to: to.getTime(), label, sub, date: from, income: 0, expense: 0 });
   }
   const add = (rows, key, field) => rows.forEach(r => {
     const ts = parseSheetDate(r['Date']);
@@ -3160,91 +3287,142 @@ function monthBuckets(n) {
   });
   add(appData.income,   'income',  'Income Amount');
   add(appData.expenses, 'expense', 'Expense Amount');
+
+  // Only show the year suffix when the range actually crosses a year
+  const years = new Set(out.map(b => b.date.getFullYear()));
+  if (years.size < 2) out.forEach(b => b.sub = '');
   return out;
 }
 
 function renderAnalytics() {
-  const buckets = monthBuckets(6);
-  const cur = buckets[buckets.length - 1];
-  const max = Math.max(1, ...buckets.map(b => Math.max(b.income, b.expense)));
+  const buckets = anaBuckets();
+  if (anaSelected > buckets.length - 1) anaSelected = buckets.length - 1;
+  const sel = buckets[anaSelected];
 
-  document.getElementById('ana-inc-total').textContent = fmt(cur.income);
-  document.getElementById('ana-exp-total').textContent = fmt(cur.expense);
+  document.getElementById('ana-inc-total').textContent = fmt(sel.income);
+  document.getElementById('ana-exp-total').textContent = fmt(sel.expense);
 
-  // Grouped bars — income and expense side by side per month
-  document.getElementById('ana-bars').innerHTML = buckets.map(b => {
-    const ih = Math.max(2, Math.round(b.income  / max * 100));
-    const eh = Math.max(2, Math.round(b.expense / max * 100));
-    const active = b.key === cur.key ? ' active' : '';
-    return `<div class="ana-col${active}">
-      <div class="ana-col-bars">
-        <div class="ana-bar green" style="height:${ih}%"><span class="ana-bar-tip">${fmt(b.income)}</span></div>
-        <div class="ana-bar blue"  style="height:${eh}%"><span class="ana-bar-tip">${fmt(b.expense)}</span></div>
-      </div>
-      <div class="ana-col-label">${b.label}</div>
-    </div>`;
-  }).join('');
+  // ── Income vs expenses ──
+  const max = Math.max(...buckets.map(b => Math.max(b.income, b.expense)), 0);
+  document.getElementById('ana-plot').innerHTML = plotHTML(buckets, max, b => [
+    { cls:'green', v:b.income },
+    { cls:'blue',  v:b.expense }
+  ]);
 
-  // Net per month — bars go up for surplus, down for deficit
-  const net = cur.income - cur.expense;
+  // ── Income left ──
+  const net = sel.income - sel.expense;
+  const netPct = sel.income > 0 ? Math.round(net / sel.income * 100) : 0;
   const netEl = document.getElementById('ana-net');
-  netEl.textContent = (net < 0 ? '-' : '') + fmt(Math.abs(net));
-  netEl.className = 'ana-big ' + (net < 0 ? 'red' : 'green');
+  netEl.textContent = netUnit === 'pct'
+    ? netPct + '%'
+    : (net < 0 ? '-' : '') + fmt(Math.abs(net));
+  netEl.className = 'ana-big ' + (net < 0 ? 'red' : net > 0 ? 'green' : '');
 
-  const netMax = Math.max(1, ...buckets.map(b => Math.abs(b.income - b.expense)));
-  document.getElementById('ana-net-bars').innerHTML = buckets.map(b => {
-    const v = b.income - b.expense;
-    const h = Math.max(2, Math.round(Math.abs(v) / netMax * 46));
-    const active = b.key === cur.key ? ' active' : '';
-    return `<div class="ana-col${active}">
-      <div class="ana-net-slot">
-        <div class="ana-net-half top">${v > 0 ? `<div class="ana-bar green" style="height:${h}px"></div>` : ''}</div>
-        <div class="ana-net-line"></div>
-        <div class="ana-net-half bottom">${v < 0 ? `<div class="ana-bar red" style="height:${h}px"></div>` : ''}</div>
-      </div>
-      <div class="ana-col-label">${b.label}</div>
-    </div>`;
-  }).join('');
+  const netVals = buckets.map(b => {
+    if (netUnit === 'pct') return b.income > 0 ? (b.income - b.expense) / b.income * 100 : 0;
+    return b.income - b.expense;
+  });
+  const netMax = Math.max(...netVals.map(Math.abs), 0);
+  document.getElementById('ana-net-plot').innerHTML =
+    plotHTML(buckets, netMax, (b, i) => [{ cls: netVals[i] < 0 ? 'red' : 'purple', v: Math.abs(netVals[i]) }],
+      netUnit === 'pct' ? v => Math.round(v) + '%' : null);
 
-  renderCalendar();
+  renderCalendar(sel);
 }
 
-function renderCalendar() {
-  const now   = new Date();
-  const year  = now.getFullYear(), month = now.getMonth();
+// One chart renderer for both plots — bars, right-hand axis, tappable labels
+function plotHTML(buckets, max, barsFor, fmtAxis) {
+  const axis = fmtAxis || (v => shortAmt(v));
+  const cols = buckets.map((b, i) => {
+    const bars = barsFor(b, i).map(bar => {
+      const pct = max > 0 ? (bar.v / max) * 100 : 0;
+      const h = bar.v > 0 ? Math.max(3, pct) : 3;   // zero still shows a stub
+      return `<div class="pbar ${bar.cls} ${bar.v > 0 ? '' : 'zero'}" style="height:${h}%"></div>`;
+    }).join('');
+    return `<div class="pcol ${i === anaSelected ? 'active' : ''}" onclick="selectBucket(${i})">
+      <div class="pcol-bars">${bars}</div>
+      <div class="pcol-label">${b.label}${b.sub ? `<span class="pcol-sub">${b.sub}</span>` : ''}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="plot-body">
+      <div class="plot-cols">${cols}</div>
+      <div class="plot-axis">
+        <span>${axis(max)}</span>
+        <span>${axis(max / 2)}</span>
+        <span>${axis(0)}</span>
+      </div>
+    </div>`;
+}
+
+function renderCalendar(bucket) {
+  // Calendar always shows a month — for wider buckets, the month the bucket ends in
+  const ref   = new Date(bucket ? bucket.to : Date.now());
+  const year  = ref.getFullYear(), month = ref.getMonth();
   const first = new Date(year, month, 1);
   const days  = new Date(year, month + 1, 0).getDate();
-  const lead  = (first.getDay() + 6) % 7;   // Monday-first grid
+  const lead  = (first.getDay() + 6) % 7;
+  const today = new Date();
 
   document.getElementById('ana-cal-month').textContent = `${MONTH_ABBR[month]} ${year}`;
 
-  // Daily expense totals
   const byDay = {};
   appData.expenses.forEach(r => {
     const ts = parseSheetDate(r['Date']);
     if (!ts) return;
     const d = new Date(ts);
-    if (d.getFullYear() === year && d.getMonth() === month) {
+    if (d.getFullYear() === year && d.getMonth() === month)
       byDay[d.getDate()] = (byDay[d.getDate()] || 0) + Number(r['Expense Amount'] || 0);
-    }
   });
-  const max = Math.max(0, ...Object.values(byDay));
 
   let html = '';
   for (let i = 0; i < lead; i++) html += '<div class="cal-cell empty"></div>';
   for (let d = 1; d <= days; d++) {
     const amt = byDay[d] || 0;
-    let lvl = 0;
-    if (amt > 0 && max > 0) lvl = Math.min(4, Math.ceil(amt / max * 4));
-    const today = d === now.getDate() ? ' today' : '';
-    const label = amt > 0 ? shortAmt(amt) : '0';
-    html += `<div class="cal-cell l${lvl}${today}" title="${d} — ${fmt(amt)}">
-      <div class="cal-day">${d}</div><div class="cal-amt">${label}</div></div>`;
+    const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+    const isSel = anaCalDay === d;
+    html += `<div class="cal-cell ${amt > 0 ? 'has' : ''} ${isSel ? 'sel' : ''} ${isToday ? 'today' : ''}"
+        onclick="openDay(${year},${month},${d})">
+      <div class="cal-day">${d}</div>
+      <div class="cal-amt">${amt > 0 ? shortAmt(amt) : '0'}</div>
+    </div>`;
   }
   document.getElementById('ana-calendar').innerHTML = html;
 }
 
-// Compact amounts so they fit inside a calendar cell
+// Tapping a day shows everything recorded that day
+function openDay(year, month, day) {
+  anaCalDay = day;
+  const target = new Date(year, month, day);
+  const from = target.getTime();
+  const to   = new Date(year, month, day, 23,59,59,999).getTime();
+
+  const rows = [
+    ...appData.expenses.map((r, i) => ({ ...r, _type:'expense', _amt:Number(r['Expense Amount']||0),
+      _date:r['Date'], _cat:r['Category'], _desc:r['Description'], _pm:r['Payment Mode'],
+      _rowIndex:r._rowIndex, _sortKey:sortKey(r, i) })),
+    ...appData.income.map((r, i) => ({ ...r, _type:'income', _amt:Number(r['Income Amount']||0),
+      _date:r['Date'], _cat:r['Category'], _desc:r['Description'], _pm:r['Payment Mode'],
+      _rowIndex:r._rowIndex, _sortKey:sortKey(r, i) }))
+  ].filter(r => { const ts = parseSheetDate(r._date); return ts >= from && ts <= to; })
+   .sort((a, b) => b._sortKey - a._sortKey);
+
+  const net = rows.reduce((s, r) => s + (r._type === 'income' ? r._amt : -r._amt), 0);
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  document.getElementById('day-title').textContent =
+    `${days[target.getDay()]}, ${day} ${MONTH_ABBR[month]}`;
+  const totalEl = document.getElementById('day-total');
+  totalEl.textContent = (net < 0 ? '-' : net > 0 ? '+' : '') + fmt(Math.abs(net));
+  totalEl.className = net < 0 ? 'red' : net > 0 ? 'green' : '';
+  document.getElementById('day-list').innerHTML = rows.length
+    ? rows.map(r => entryItemHTML(r)).join('')
+    : emptyState('Nothing that day', 'No income or expenses recorded');
+  document.getElementById('day-overlay').classList.add('open');
+  renderCalendar(anaBuckets()[anaSelected]);
+}
+
+// Compact amounts so axis labels and calendar cells stay readable
 function shortAmt(n) {
   const v = Math.abs(Number(n) || 0);
   if (v >= 10000000) return (v / 10000000).toFixed(1).replace(/\.0$/,'') + 'Cr';
