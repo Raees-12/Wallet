@@ -121,7 +121,7 @@
       <div class="donut-wrap">
         <svg class="donut" id="summary-donut" viewBox="0 0 200 200"></svg>
         <div class="donut-center">
-          <button class="donut-period-btn" onclick="openDatePicker()">
+          <button class="donut-period-btn" id="summary-period-btn" onclick="clearCategorySel()">
             <span id="summary-period">This month</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
@@ -150,8 +150,11 @@
 
     <!-- ANALYTICS -->
     <div class="page" id="page-analytics">
-      <div class="page-header">
-        <div><div class="page-title">Analytics</div><div class="page-sub" id="ana-sub">Last 6 months</div></div>
+      <div class="fchip-row">
+        <div class="fchip" onclick="openAnaPeriodSheet()">
+          <span id="chip-ana-period">Monthly</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
 
       <div class="ana-card">
@@ -159,13 +162,21 @@
           <div><span class="ana-key green"></span>Income<div class="ana-key-val" id="ana-inc-total">₹0</div></div>
           <div><span class="ana-key blue"></span>Expenses<div class="ana-key-val" id="ana-exp-total">₹0</div></div>
         </div>
-        <div class="ana-chart" id="ana-bars"></div>
+        <div class="ana-plot" id="ana-plot"></div>
       </div>
 
       <div class="ana-card">
-        <div class="ana-card-title">Net this month</div>
-        <div class="ana-big" id="ana-net">₹0</div>
-        <div class="ana-chart ana-chart-sm" id="ana-net-bars"></div>
+        <div class="ana-head">
+          <div>
+            <div class="ana-card-title">Income left</div>
+            <div class="ana-big" id="ana-net">₹0</div>
+          </div>
+          <div class="unit-toggle">
+            <div class="unit-opt active" id="unit-cur" onclick="setNetUnit('cur')">₹</div>
+            <div class="unit-opt" id="unit-pct" onclick="setNetUnit('pct')">%</div>
+          </div>
+        </div>
+        <div class="ana-plot ana-plot-sm" id="ana-net-plot"></div>
       </div>
 
       <div class="ana-card">
@@ -174,11 +185,6 @@
           <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
         </div>
         <div class="cal-grid" id="ana-calendar"></div>
-        <div class="cal-legend">
-          <span>Less</span>
-          <i class="cal-sw l0"></i><i class="cal-sw l1"></i><i class="cal-sw l2"></i><i class="cal-sw l3"></i><i class="cal-sw l4"></i>
-          <span>More</span>
-        </div>
       </div>
     </div>
 
@@ -750,6 +756,31 @@
     </div>
   </div>
 
+</div>
+
+<!-- ANALYTICS PERIOD SHEET -->
+<div class="overlay" id="anaperiod-overlay" onclick="closeOverlay('anaperiod-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title center">Time period</div>
+    <div class="opt-list" id="anaperiod-opts"></div>
+  </div>
+</div>
+
+<!-- DAY DETAIL SHEET -->
+<div class="overlay" id="day-overlay" onclick="closeOverlay('day-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close" onclick="closeOverlay('day-overlay')" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h2 class="day-title" id="day-title">Today</h2>
+    <div class="day-total-row">
+      <span>Total amount</span>
+      <span id="day-total">₹0</span>
+    </div>
+    <div id="day-list" class="entry-list"></div>
+  </div>
 </div>
 
 <!-- DATE PICKER SHEET -->
