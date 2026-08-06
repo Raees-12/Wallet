@@ -315,68 +315,222 @@
   </div>
 </div>
 
-<!-- SETTINGS — FULL PAGE -->
+<!-- ══════════════ SETTINGS (full page + sub-pages) ══════════════ -->
 <div id="settings-screen" class="settings-screen">
-  <div class="settings-topbar">
-    <button class="settings-back" onclick="closeSettings()" aria-label="Back">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <div class="settings-topbar-title">Settings</div>
+
+  <!-- ─── MAIN ─── -->
+  <div class="spage active" id="spage-main">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="closeSettings()" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Settings</h1>
+      </div>
+
+      <div class="settings-hero">
+        <div class="settings-hero-avatar" id="settings-avatar">R</div>
+        <div class="settings-hero-text">
+          <div class="settings-hero-name" id="settings-name">User</div>
+          <div class="settings-hero-email" id="settings-email"></div>
+        </div>
+      </div>
+      <div class="settings-hero-tags" id="settings-tags"></div>
+
+      <div class="settings-card">
+        <div class="settings-row" onclick="openSubPage('accounts')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="settings-row-label">Accounts</div>
+          <div class="settings-row-value" id="settings-accounts-value">1</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="openSubPage('categories')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/></svg>
+          </div>
+          <div class="settings-row-label">Categories</div>
+          <div class="settings-row-value" id="settings-cat-value"></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="openSubPage('appearance')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/></svg>
+          </div>
+          <div class="settings-row-label">Appearance</div>
+          <div class="settings-row-value" id="settings-theme-value">Light</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="openSubPage('reports')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <div class="settings-row-label">Reports</div>
+          <div class="settings-row-value">PDF · CSV</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </div>
+          <div class="settings-row-label">Hide balance on open<span class="settings-row-hint">Dashboard starts masked</span></div>
+          <label class="toggle"><input type="checkbox" id="pref-hide-balance" onchange="setPref('hideBalance',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <div class="settings-row-label">Show decimals<span class="settings-row-hint">₹1,250.00 instead of ₹1,250</span></div>
+          <label class="toggle"><input type="checkbox" id="pref-decimals" onchange="setPref('decimals',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+          </div>
+          <div class="settings-row-label">Haptic feedback<span class="settings-row-hint">Vibrate on long press</span></div>
+          <label class="toggle"><input type="checkbox" id="pref-haptics" onchange="setPref('haptics',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-row" onclick="syncNow()">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </div>
+          <div class="settings-row-label">Sync now</div>
+          <div class="settings-row-value" id="settings-sync-value">—</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="clearCacheConfirm()">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+          </div>
+          <div class="settings-row-label">Clear offline cache</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" id="settings-install-row" style="display:none" onclick="triggerInstall()">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="settings-row-label">Install app</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <div class="settings-row-label">Version</div>
+          <div class="settings-row-value" id="settings-version">1.0.0</div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-row settings-row-danger" onclick="doLogout()">
+          <div class="settings-chip settings-chip-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </div>
+          <div class="settings-row-label">Log out<span class="settings-row-hint" id="settings-logout-hint">Sign out of this account</span></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row settings-row-danger" id="settings-logout-all-row" onclick="logoutAllConfirm()">
+          <div class="settings-chip settings-chip-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="8" x2="17" y2="14"/><line x1="17" y1="8" x2="23" y2="14"/></svg>
+          </div>
+          <div class="settings-row-label">Log out of all accounts</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="settings-footer">Wallet · Smart finance tracking</div>
+    </div>
   </div>
 
-  <div class="settings-body">
-
-    <!-- PROFILE HERO -->
-    <div class="settings-hero">
-      <div class="settings-hero-avatar" id="settings-avatar">R</div>
-      <div class="settings-hero-name" id="settings-name">User</div>
-      <div class="settings-hero-email" id="settings-email"></div>
-      <div class="settings-hero-tags" id="settings-tags"></div>
-    </div>
-
-    <!-- ACCOUNTS -->
-    <div class="settings-group">
-      <div class="settings-group-title">Accounts</div>
+  <!-- ─── ACCOUNTS ─── -->
+  <div class="spage" id="spage-accounts">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Accounts</h1>
+      </div>
+      <div class="settings-card"><div id="settings-accounts-list"></div></div>
       <div class="settings-card">
-        <div id="settings-accounts"></div>
         <div class="settings-row" onclick="startAddAccount()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(var(--blue-rgb),.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </div>
-            <div><div class="settings-row-label">Add account</div><div class="settings-row-sub">Sign in to another Wallet account</div></div>
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
+          <div class="settings-row-label">Add account<span class="settings-row-hint">Sign in to another Wallet account</span></div>
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
       </div>
       <div class="settings-note">Double-tap your profile picture to jump to the next account, or hold it to pick one.</div>
     </div>
+  </div>
 
-    <!-- APPEARANCE -->
-    <div class="settings-group">
-      <div class="settings-group-title">Appearance</div>
-      <div class="settings-card settings-card-pad">
-        <div class="settings-sub-label">Theme</div>
-        <div class="theme-grid" id="theme-grid">
-          <div class="theme-card" data-theme-opt="light" onclick="applyTheme('light')">
-            <div class="theme-preview theme-preview-light"><span></span><span></span></div>
-            <div class="theme-card-label">Light</div>
-          </div>
-          <div class="theme-card" data-theme-opt="dark" onclick="applyTheme('dark')">
-            <div class="theme-preview theme-preview-dark"><span></span><span></span></div>
-            <div class="theme-card-label">Dark</div>
-          </div>
-          <div class="theme-card" data-theme-opt="amoled" onclick="applyTheme('amoled')">
-            <div class="theme-preview theme-preview-amoled"><span></span><span></span></div>
-            <div class="theme-card-label">AMOLED</div>
-          </div>
-          <div class="theme-card" data-theme-opt="glass" onclick="applyTheme('glass')">
-            <div class="theme-preview theme-preview-glass"><span></span><span></span></div>
-            <div class="theme-card-label">Glass</div>
-          </div>
+  <!-- ─── CATEGORIES ─── -->
+  <div class="spage" id="spage-categories">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Categories</h1>
+      </div>
+      <div class="segmented" id="cat-segmented">
+        <div class="segment active" onclick="setCatTab('expense')">Expense</div>
+        <div class="segment" onclick="setCatTab('income')">Income</div>
+        <div class="segment" onclick="setCatTab('loan')">Loan</div>
+        <div class="segment" onclick="setCatTab('emi')">EMI</div>
+      </div>
+      <div class="settings-note" style="margin-top:0">Turn a category off to hide it from the entry forms. Existing entries keep their category.</div>
+      <div class="settings-card"><div id="cat-list"></div></div>
+      <div class="settings-card">
+        <div class="cat-add-row">
+          <input type="text" id="cat-add-input" placeholder="New category name" autocomplete="off">
+          <button class="btn btn-primary btn-sm" onclick="addCatFromPage()">Add</button>
         </div>
-        <div class="settings-divider"></div>
-        <div class="settings-sub-label">Accent colour</div>
+      </div>
+    </div>
+    <div class="spage-savebar" id="cat-savebar">
+      <button class="btn btn-primary" id="cat-save-btn" onclick="saveConfig()">Save changes</button>
+    </div>
+  </div>
+
+  <!-- ─── APPEARANCE ─── -->
+  <div class="spage" id="spage-appearance">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Appearance</h1>
+      </div>
+      <div class="settings-section-label">Theme</div>
+      <div class="theme-grid" id="theme-grid">
+        <div class="theme-card" data-theme-opt="light" onclick="applyTheme('light')">
+          <div class="theme-preview theme-preview-light"><span></span><span></span></div>
+          <div class="theme-card-label">Light</div>
+        </div>
+        <div class="theme-card" data-theme-opt="dark" onclick="applyTheme('dark')">
+          <div class="theme-preview theme-preview-dark"><span></span><span></span></div>
+          <div class="theme-card-label">Dark</div>
+        </div>
+        <div class="theme-card" data-theme-opt="amoled" onclick="applyTheme('amoled')">
+          <div class="theme-preview theme-preview-amoled"><span></span><span></span></div>
+          <div class="theme-card-label">AMOLED</div>
+        </div>
+        <div class="theme-card" data-theme-opt="glass" onclick="applyTheme('glass')">
+          <div class="theme-preview theme-preview-glass"><span></span><span></span></div>
+          <div class="theme-card-label">Glass</div>
+        </div>
+      </div>
+      <div class="settings-section-label">Accent colour</div>
+      <div class="settings-card settings-card-pad">
         <div class="accent-row" id="accent-row">
           <div class="accent-dot" data-accent="#1a73e8" style="background:#1a73e8;color:#1a73e8" onclick="setAccent('#1a73e8')"></div>
           <div class="accent-dot" data-accent="#8b5cf6" style="background:#8b5cf6;color:#8b5cf6" onclick="setAccent('#8b5cf6')"></div>
@@ -391,155 +545,47 @@
         </div>
       </div>
     </div>
-
-    <!-- TOOLS -->
-    <div class="settings-group">
-      <div class="settings-group-title">Tools</div>
-      <div class="settings-card">
-        <div class="settings-row" onclick="openReport()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(var(--blue-rgb),.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            </div>
-            <div><div class="settings-row-label">Reports</div><div class="settings-row-sub">Generate and export PDF or CSV</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="settings-row" onclick="openConfig()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(52,168,83,.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </div>
-            <div><div class="settings-row-label">Categories</div><div class="settings-row-sub">Expense, income, loan and EMI types</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- DATA -->
-    <div class="settings-group">
-      <div class="settings-group-title">Data &amp; Storage</div>
-      <div class="settings-card">
-        <div class="settings-row" onclick="syncNow()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(6,182,212,.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            </div>
-            <div><div class="settings-row-label">Sync now</div><div class="settings-row-sub" id="settings-sync-sub">Fetch the latest from the server</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="settings-row" onclick="clearCacheConfirm()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(249,171,0,.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
-            </div>
-            <div><div class="settings-row-label">Clear offline cache</div><div class="settings-row-sub">Forces a fresh download next time</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- ABOUT -->
-    <div class="settings-group">
-      <div class="settings-group-title">About</div>
-      <div class="settings-card">
-        <div class="settings-row settings-row-static">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(139,92,246,.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            </div>
-            <div><div class="settings-row-label">Version</div><div class="settings-row-sub" id="settings-version">1.0.0</div></div>
-          </div>
-        </div>
-        <div class="settings-row" id="settings-install-row" style="display:none" onclick="triggerInstall()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(52,168,83,.12)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <div><div class="settings-row-label">Install app</div><div class="settings-row-sub">Add Wallet to your home screen</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- SIGN OUT -->
-    <div class="settings-group">
-      <div class="settings-card">
-        <div class="settings-row" onclick="doLogout()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(217,48,37,.1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            </div>
-            <div><div class="settings-row-label" style="color:var(--red)">Log out</div><div class="settings-row-sub" id="settings-logout-sub">Sign out of this account</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-        <div class="settings-row" id="settings-logout-all-row" onclick="logoutAllConfirm()">
-          <div class="settings-row-left">
-            <div class="settings-row-icon" style="background:rgba(217,48,37,.1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="8" x2="17" y2="14"/><line x1="17" y1="8" x2="23" y2="14"/></svg>
-            </div>
-            <div><div class="settings-row-label" style="color:var(--red)">Log out of all accounts</div><div class="settings-row-sub">Removes every account from this device</div></div>
-          </div>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-footer">Wallet · Smart finance tracking</div>
   </div>
-</div>
 
-<!-- CONFIG SHEET -->
-<div class="overlay" id="config-overlay" onclick="closeOverlay('config-overlay',event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Configuration</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Uncheck to hide a category. Add your own below each section.</p>
-    <div id="config-expense-section" class="config-section"></div>
-    <div id="config-income-section" class="config-section"></div>
-    <div id="config-loan-section" class="config-section"></div>
-    <div id="config-emi-section" class="config-section"></div>
-    <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
-  </div>
-</div>
-
-<!-- REPORT SHEET -->
-<div class="overlay" id="report-overlay" onclick="closeOverlay('report-overlay',event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Reports</div>
-    <div class="report-type-row">
-      <div class="report-chip active" onclick="setReportType(this,'daily')">Today</div>
-      <div class="report-chip" onclick="setReportType(this,'weekly')">This Week</div>
-      <div class="report-chip" onclick="setReportType(this,'monthly')">This Month</div>
-      <div class="report-chip" onclick="setReportType(this,'range')">Custom</div>
-    </div>
-    <div id="report-range-row" style="display:none;margin-bottom:14px;">
-      <div class="form-2col">
-        <div class="form-group"><div class="field-label">From</div><input type="date" id="report-from"></div>
-        <div class="form-group"><div class="field-label">To</div><input type="date" id="report-to"></div>
+  <!-- ─── REPORTS ─── -->
+  <div class="spage" id="spage-reports">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Reports</h1>
       </div>
-    </div>
-    <button class="btn btn-primary" style="margin-bottom:10px" onclick="generateReport()">Generate Report</button>
-    <div class="report-actions" id="report-export-btns" style="display:none">
-      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Export CSV
-      </button>
-      <button class="btn btn-ghost btn-sm" onclick="exportPDF()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        Export PDF
-      </button>
-    </div>
-    <div class="report-output" id="report-output">
-      <div class="report-placeholder">Select a period and generate your report</div>
+      <div class="settings-section-label">Period</div>
+      <div class="report-type-row">
+        <div class="report-chip active" onclick="setReportType(this,'daily')">Today</div>
+        <div class="report-chip" onclick="setReportType(this,'weekly')">This Week</div>
+        <div class="report-chip" onclick="setReportType(this,'monthly')">This Month</div>
+        <div class="report-chip" onclick="setReportType(this,'range')">Custom</div>
+      </div>
+      <div id="report-range-row" style="display:none;margin-bottom:14px;">
+        <div class="form-2col">
+          <div class="form-group"><div class="field-label">From</div><input type="date" id="report-from"></div>
+          <div class="form-group"><div class="field-label">To</div><input type="date" id="report-to"></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-bottom:12px" onclick="generateReport()">Generate Report</button>
+      <div class="report-actions" id="report-export-btns" style="display:none">
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Export CSV
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="exportPDF()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Export PDF
+        </button>
+      </div>
+      <div class="report-output" id="report-output">
+        <div class="report-placeholder">Select a period and generate your report</div>
+      </div>
     </div>
   </div>
+
 </div>
 
 <!-- ACCOUNT SWITCHER SHEET -->
@@ -749,6 +795,7 @@ function applyTheme(theme) {
   document.querySelectorAll('.theme-card[data-theme-opt]').forEach(c =>
     c.classList.toggle('active', c.dataset.themeOpt === theme));
   updateMetaThemeColor();
+  if (typeof refreshThemeRow === 'function') refreshThemeRow();
 }
 
 // ── PWA Install Prompt ──
