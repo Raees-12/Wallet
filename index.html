@@ -116,24 +116,56 @@
       <div id="dash-recent" class="entry-list"></div>
     </div>
 
-    <!-- EXPENSES -->
-    <div class="page" id="page-expenses">
-      <div class="page-header">
-        <div><div class="page-title">Expenses</div><div class="page-sub" id="exp-count">0 entries</div></div>
+    <!-- SUMMARY -->
+    <div class="page" id="page-summary">
+      <div class="donut-wrap">
+        <svg class="donut" id="summary-donut" viewBox="0 0 200 200"></svg>
+        <div class="donut-center">
+          <div class="donut-period" id="summary-period">This month</div>
+          <div class="donut-total" id="summary-total">₹0</div>
+          <div class="donut-count" id="summary-count">0 entries</div>
+        </div>
       </div>
-      <div class="filter-bar" id="exp-filter-bar"></div>
-      <div class="page-total red" id="exp-total">₹0</div>
-      <div id="expenses-list" class="entry-list"></div>
+      <div class="segmented seg-inline">
+        <div class="segment active" onclick="setSummaryType('expense')">Expenses</div>
+        <div class="segment" onclick="setSummaryType('income')">Income</div>
+      </div>
+      <div class="filter-bar" id="summary-filter-bar"></div>
+      <div id="summary-breakdown"></div>
     </div>
 
-    <!-- INCOME -->
-    <div class="page" id="page-income">
+    <!-- ANALYTICS -->
+    <div class="page" id="page-analytics">
       <div class="page-header">
-        <div><div class="page-title">Income</div><div class="page-sub" id="inc-count">0 entries</div></div>
+        <div><div class="page-title">Analytics</div><div class="page-sub" id="ana-sub">Last 6 months</div></div>
       </div>
-      <div class="filter-bar" id="inc-filter-bar"></div>
-      <div class="page-total green" id="inc-total">₹0</div>
-      <div id="income-list" class="entry-list"></div>
+
+      <div class="ana-card">
+        <div class="ana-legend">
+          <div><span class="ana-key green"></span>Income<div class="ana-key-val" id="ana-inc-total">₹0</div></div>
+          <div><span class="ana-key blue"></span>Expenses<div class="ana-key-val" id="ana-exp-total">₹0</div></div>
+        </div>
+        <div class="ana-chart" id="ana-bars"></div>
+      </div>
+
+      <div class="ana-card">
+        <div class="ana-card-title">Net this month</div>
+        <div class="ana-big" id="ana-net">₹0</div>
+        <div class="ana-chart ana-chart-sm" id="ana-net-bars"></div>
+      </div>
+
+      <div class="ana-card">
+        <div class="ana-card-title">Calendar<span class="ana-card-sub" id="ana-cal-month"></span></div>
+        <div class="cal-grid cal-head">
+          <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+        </div>
+        <div class="cal-grid" id="ana-calendar"></div>
+        <div class="cal-legend">
+          <span>Less</span>
+          <i class="cal-sw l0"></i><i class="cal-sw l1"></i><i class="cal-sw l2"></i><i class="cal-sw l3"></i><i class="cal-sw l4"></i>
+          <span>More</span>
+        </div>
+      </div>
     </div>
 
     <!-- LOANS -->
@@ -182,13 +214,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       <span class="nav-label">Dashboard</span>
     </div>
-    <div class="nav-item" data-page="expenses" onclick="switchPage('expenses')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
-      <span class="nav-label">Expenses</span>
+    <div class="nav-item" data-page="summary" onclick="switchPage('summary')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21.2 15.9A10 10 0 1 1 8.1 2.8"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+      <span class="nav-label">Summary</span>
     </div>
-    <div class="nav-item" data-page="income" onclick="switchPage('income')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-      <span class="nav-label">Income</span>
+    <div class="nav-item" data-page="analytics" onclick="switchPage('analytics')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="nav-label">Analytics</span>
     </div>
     <div class="nav-item" data-page="loans" onclick="switchPage('loans')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -704,6 +736,16 @@
     </div>
   </div>
 
+</div>
+
+<!-- CATEGORY ENTRIES SHEET -->
+<div class="overlay" id="cat-entries-overlay" onclick="closeOverlay('cat-entries-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="cat-entries-title">Category</div>
+    <div class="cat-entries-total" id="cat-entries-total">₹0</div>
+    <div id="cat-entries-list" class="entry-list"></div>
+  </div>
 </div>
 
 <!-- ACCOUNT SWITCHER SHEET -->
