@@ -2149,19 +2149,17 @@ function triggerInstall() {
 // as its own icon. handleLaunchAction() below catches the ?action= they open.
 // ══════════════════════════════════════════════════════════════
 let _widgetIndex = 0;
+let _railBound   = false;
 
-function renderWidgets() {
-  const stage = document.getElementById('widget-stage');
-  const dots  = document.getElementById('widget-dots');
-  if (!stage) return;
+const WIDGET_TITLES = ['Balance', 'Quick Add', 'This Month'];
 
+function widgetCards() {
   const bal   = calcBalance();
   const month = monthTotals();
   const pct   = month.income > 0 ? Math.min(100, Math.round(month.expense / month.income * 100)) : 0;
   const name  = (currentUser && currentUser.username) || 'Wallet';
 
-  const cards = [
-    // Balance
+  return [
     `<div class="wgt wgt-balance">
        <div class="wgt-top"><span class="wgt-brand">Wallet</span><span class="wgt-user">${esc(name)}</span></div>
        <div class="wgt-label">Balance</div>
@@ -2171,7 +2169,6 @@ function renderWidgets() {
          <div><span class="wgt-dot down"></span>Out ${fmt(month.expense)}</div>
        </div>
      </div>`,
-    // Quick add
     `<div class="wgt wgt-quick">
        <div class="wgt-top"><span class="wgt-brand">Quick add</span></div>
        <div class="wgt-actions">
@@ -2181,7 +2178,6 @@ function renderWidgets() {
          <div class="wgt-act blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Report</span></div>
        </div>
      </div>`,
-    // This month
     `<div class="wgt wgt-month">
        <div class="wgt-top"><span class="wgt-brand">This month</span><span class="wgt-user">${esc(monthLabel())}</span></div>
        <div class="wgt-amount sm">${fmt(month.expense)}<span class="wgt-of">of ${fmt(month.income)}</span></div>
@@ -2189,38 +2185,101 @@ function renderWidgets() {
        <div class="wgt-split"><div>${pct}% of income spent</div><div>${fmt(Math.max(0, month.income - month.expense))} left</div></div>
      </div>`
   ];
-
-  stage.innerHTML = cards[_widgetIndex] || cards[0];
-  dots.innerHTML = cards.map((_, i) =>
-    `<div class="widget-dot ${i === _widgetIndex ? 'active' : ''}" onclick="setWidget(${i})"></div>`).join('');
-
-  // Platform-specific instructions — no point telling an iPhone user to long-press
-  const ua = navigator.userAgent;
-  const isAndroid = /Android/i.test(ua);
-  const isIOS     = /iPhone|iPad|iPod/i.test(ua);
-  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-  let how;
-  if (!installed) {
-    how = 'Install Wallet to your home screen first — then long-press the app icon to reach these shortcuts.';
-  } else if (isAndroid) {
-    how = 'Long-press the Wallet icon on your home screen. The four shortcuts below appear — drag any one onto the home screen to pin it as its own icon.';
-  } else if (isIOS) {
-    how = 'iOS does not expose web app shortcuts. You can still add Wallet to your home screen and use the quick actions inside the app.';
-  } else {
-    how = 'Right-click the Wallet icon in your taskbar or app list to reach these shortcuts.';
-  }
-  document.getElementById('widget-howto').textContent = how;
-
-  const callout = document.getElementById('widget-callout');
-  callout.innerHTML = isAndroid
-    ? `<strong>About true home screen widgets</strong>
-       Android only allows installed native apps to draw live widgets. Wallet is a web app, so the pinned shortcuts above are the closest equivalent — they open the exact screen in one tap. The previews show what each shortcut leads to.`
-    : `<strong>About true home screen widgets</strong>
-       Live home screen widgets are a native-app feature that web apps cannot draw on most platforms. The pinned shortcuts above are the supported equivalent and open the exact screen in one tap.`;
 }
 
-function setWidget(i) { _widgetIndex = i; renderWidgets(); }
+function renderWidgets() {
+  const rail = document.getElementById('widget-rail');
+  if (!rail) return;
+  const cards = widgetCards();
+
+  rail.innerHTML = cards.map((c, i) =>
+    `<div class="widget-slide">${c}<div class="widget-caption">${WIDGET_TITLES[i]}</div></div>`).join('');
+
+  // Native horizontal swipe with scroll snapping — the dots just follow along
+  if (!_railBound) {
+    _railBound = true;
+    let raf = null;
+    rail.addEventListener('scroll', () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const i = Math.round(rail.scrollLeft / Math.max(1, rail.clientWidth));
+        if (i !== _widgetIndex) { _widgetIndex = i; paintDots(); }
+      });
+    }, { passive: true });
+  }
+  paintDots();
+  renderWidgetSteps();
+}
+
+function paintDots() {
+  const dots = document.getElementById('widget-dots');
+  if (!dots) return;
+  dots.innerHTML = WIDGET_TITLES.map((_, i) =>
+    `<div class="widget-dot ${i === _widgetIndex ? 'active' : ''}" onclick="setWidget(${i})"></div>`).join('');
+}
+
+function setWidget(i) {
+  const rail = document.getElementById('widget-rail');
+  if (!rail) return;
+  _widgetIndex = i;
+  rail.scrollTo({ left: i * rail.clientWidth, behavior: 'smooth' });
+  paintDots();
+}
+
+// Step-by-step guide, written for whatever the person is actually running on
+function renderWidgetSteps() {
+  const el = document.getElementById('widget-steps');
+  if (!el) return;
+  const ua = navigator.userAgent;
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+  const step = (n, title, body) =>
+    `<div class="wstep"><div class="wstep-num">${n}</div>
+       <div><div class="wstep-title">${title}</div><div class="wstep-body">${body}</div></div></div>`;
+
+  let steps = '';
+  let action = '';
+
+  if (!installed) {
+    steps =
+      step(1, 'Install Wallet', 'Chrome menu (⋮) → <b>Add to Home screen</b> → <b>Install</b>. This creates a real app icon, not a bookmark.') +
+      step(2, 'Long-press the icon', 'Once installed, press and hold the Wallet icon on your home screen.') +
+      step(3, 'Drag out a shortcut', 'The four shortcuts below pop up. Drag any one onto an empty spot to pin it as its own icon.');
+    if (window._installPrompt) {
+      action = `<button class="btn btn-primary" style="margin-top:12px" onclick="triggerInstall()">Install Wallet now</button>`;
+    }
+  } else if (isAndroid) {
+    steps =
+      step(1, 'Long-press the Wallet icon', 'Press and hold the app icon on your home screen or in the app drawer.') +
+      step(2, 'Pick a shortcut', 'Add Expense, Add Income, Loans and Reports appear above the icon.') +
+      step(3, 'Drag it out', 'Hold the shortcut and drag it onto the home screen. It becomes its own tappable icon that opens straight to that screen.');
+    action =
+      `<div class="wnote">
+         <strong>Shortcuts not showing?</strong>
+         Android caches the app definition from when you installed it. Uninstall Wallet from your home screen, reload this page in Chrome, and install it again — the shortcuts appear immediately after a fresh install.
+       </div>`;
+  } else if (isIOS) {
+    steps =
+      step(1, 'Add to Home Screen', 'Share button → <b>Add to Home Screen</b>.') +
+      step(2, 'Use the in-app quick actions', 'iOS does not expose web app shortcuts, so the + button inside Wallet is the fastest route.');
+  } else {
+    steps =
+      step(1, 'Install Wallet', 'Click the install icon in the address bar.') +
+      step(2, 'Right-click the icon', 'The shortcuts appear in the context menu from your taskbar or app list.');
+  }
+
+  el.innerHTML = `<div class="settings-card settings-card-pad wsteps">${steps}</div>${action}`;
+
+  const callout = document.getElementById('widget-callout');
+  if (callout) {
+    callout.innerHTML =
+      `<strong>Why not a live widget?</strong>
+       Drawing a card on the Android launcher is something only apps installed from the Play Store can do. Wallet runs in Chrome, so it can't paint pixels outside its own window. Pinned shortcuts are the supported equivalent — one tap, straight to the screen you want. The previews above show where each shortcut lands.`;
+  }
+}
 
 // All-time balance, using the same field names as the dashboard
 function calcBalance() {
