@@ -105,7 +105,12 @@ function fmtDateForSheet(iso) {
 
 function todayISO() { return new Date().toISOString().split('T')[0]; }
 
-function fmt(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
+function fmt(n) {
+  const num = Number(n) || 0;
+  return '₹' + num.toLocaleString('en-IN', prefs.decimals
+    ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+    : { maximumFractionDigits: 0 });
+}
 
 // Escape text before it goes into innerHTML / inline onclick attributes
 function esc(s) {
@@ -330,6 +335,11 @@ function setAccent(hex) {
   updateMetaThemeColor();
 }
 
+function refreshThemeRow() {
+  const el = document.getElementById('settings-theme-value');
+  if (el) el.textContent = THEME_LABELS[document.documentElement.getAttribute('data-theme')] || 'Light';
+}
+
 function updateMetaThemeColor() {
   const theme = document.documentElement.getAttribute('data-theme') || 'light';
   const meta = document.getElementById('meta-theme-color');
@@ -367,7 +377,7 @@ function initAvatarGestures() {
     _longPressTimer = setTimeout(() => {
       _longPressFired = true;
       clearTimeout(_tapTimer); _tapTimer = null;
-      try { if (navigator.vibrate) navigator.vibrate(15); } catch(err) {}
+      buzz(15);
       openAccountSwitcher();
     }, LONG_PRESS_MS);
   });
@@ -461,7 +471,7 @@ function renderAccountRows(containerId) {
 // another's numbers, filters, or open sheets.
 function resetAppState() {
   appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
-  balanceHidden   = true;
+  balanceHidden   = prefs.hideBalance;
   expFilterVal    = _curMonth;
   incFilterVal    = _curMonth;
   dashFilterType  = 'month';
@@ -475,8 +485,7 @@ function resetAppState() {
   Object.keys(_entryRegistry).forEach(k => delete _entryRegistry[k]);
   // Close anything left open from the previous account
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
-   'entry-detail-overlay','config-overlay','report-overlay','add-overlay',
-   'emi-add-overlay'].forEach(id => {
+   'entry-detail-overlay','add-overlay','emi-add-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   // Reset dashboard chips back to "This Month"
@@ -543,7 +552,6 @@ function removeAccountConfirm(id, name) {
       }
       updateAccountBadge();
       renderAccountSwitcher();
-      if (document.getElementById('settings-screen').classList.contains('open')) renderSettings();
     },
     'Remove'
   );
@@ -576,12 +584,13 @@ function logoutAllConfirm() {
 function updateAccountBadge() {
   const av = document.getElementById('topbar-avatar');
   if (av) av.classList.toggle('multi', accounts.length > 1);
-  if (document.getElementById('settings-screen').classList.contains('open')) renderSettings();
+  if (_settingsOpen) { renderSettings(); renderAccountRows('settings-accounts-list'); }
 }
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
-  balanceHidden = true; // always start hidden on every open
+  loadPrefs();
+  balanceHidden = prefs.hideBalance;
   const theme = loadTheme();
   applyTheme(theme);
   setAccent(loadAccent());
@@ -640,7 +649,6 @@ function initMainScreen() {
   document.getElementById('topbar-greeting').textContent = 'Hi, '+u.username;
   document.getElementById('topbar-avatar').textContent = u.username[0].toUpperCase();
   updateAccountBadge();
-  if (document.getElementById('settings-screen').classList.contains('open')) renderSettings();
 }
 
 // Logs out of the CURRENT account only. If other accounts are signed in on
@@ -815,69 +823,9 @@ function syncConfigStateFromServer() {
   });
 }
 
-// ── CONFIGURATION ──
-function renderConfigSheet() {
-  renderConfigSection('expense','Expense Categories','config-expense-section');
-  renderConfigSection('income','Income Categories','config-income-section');
-  renderConfigSection('loan','Loan Types','config-loan-section');
-  renderConfigSection('emi','EMI Types','config-emi-section');
-}
-
-function renderConfigSection(type, title, sectionId) {
-  const defaults = type==='expense'?DEFAULT_EXPENSE:type==='income'?DEFAULT_INCOME:type==='loan'?DEFAULT_LOAN:DEFAULT_EMI;
-  const state = configState[type];
-  const el = document.getElementById(sectionId);
-  let html = `<div class="config-section-title">${title}</div>`;
-  defaults.forEach(cat => {
-    const checked = state.checked.has(cat) ? 'checked' : '';
-    html += `<div class="config-item">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="config-item-label">${cat}</span>
-        <span class="config-item-badge">Default</span>
-      </div>
-      <input type="checkbox" class="checkbox" data-type="${type}" data-cat="${cat}" ${checked} onchange="toggleConfigCat(this)">
-    </div>`;
-  });
-  state.custom.forEach(cat => {
-    html += `<div class="config-item">
-      <span class="config-item-label">${cat}</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="config-item-badge" style="background:rgba(26,115,232,.1);color:var(--blue)">Custom ✓</span>
-        <button onclick="removeCustomCat('${type}','${cat}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;line-height:1">×</button>
-      </div>
-    </div>`;
-  });
-  html += `<div class="config-add-row">
-    <input type="text" id="config-add-${type}" placeholder="Add custom ${type} category">
-    <button class="btn btn-primary btn-sm" onclick="addCustomCat('${type}')">Add</button>
-  </div>`;
-  el.innerHTML = html;
-}
-
-function toggleConfigCat(el) {
-  const type = el.dataset.type, cat = el.dataset.cat;
-  if (el.checked) configState[type].checked.add(cat);
-  else configState[type].checked.delete(cat);
-}
-function addCustomCat(type) {
-  const inp = document.getElementById(`config-add-${type}`);
-  const val = inp.value.trim();
-  if (!val) { showToast('Enter a category name'); return; }
-  if (configState[type].custom.includes(val) || DEFAULT_EXPENSE.concat(DEFAULT_INCOME,DEFAULT_LOAN).includes(val)) { showToast('Already exists'); return; }
-  configState[type].custom.push(val);
-  inp.value = '';
-  const titleMap = {expense:'Expense Categories',income:'Income Categories',loan:'Loan Types',emi:'EMI Types'};
-  renderConfigSection(type, titleMap[type]||type, `config-${type}-section`);
-}
-function removeCustomCat(type, cat) {
-  configState[type].custom = configState[type].custom.filter(c=>c!==cat);
-  const titleMap = {expense:'Expense Categories',income:'Income Categories',loan:'Loan Types',emi:'EMI Types'};
-  renderConfigSection(type, titleMap[type]||type, `config-${type}-section`);
-}
-
 async function saveConfig() {
-  const btn = document.querySelector('#config-overlay .btn-primary');
-  btn.textContent = 'Saving...'; btn.disabled = true;
+  const btn = document.getElementById('cat-save-btn');
+  if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
   try {
     // Only save custom items + which defaults are unchecked
     // Defaults that ARE checked don't need saving (they're hardcoded)
@@ -900,10 +848,14 @@ async function saveConfig() {
       emiCustom: configState.emi.custom.join(','),
       emiUnchecked: emiUnchecked.join(',')
     });
-    if (res.success) { showToast('Configuration saved'); populateCategorySelects(); closeOverlay('config-overlay'); }
-    else { showToast('Error: '+(res.error||'Failed')); }
+    if (res.success) {
+      showToast('Categories saved');
+      populateCategorySelects();
+      markCatClean();
+      renderCatList();
+    } else { showToast('Error: '+(res.error||'Failed')); }
   } catch(e) { showToast('Connection error'); }
-  btn.textContent = 'Save Configuration'; btn.disabled = false;
+  if (btn) { btn.textContent = 'Save changes'; btn.disabled = false; }
 }
 
 // ── REPORTS ──
@@ -2032,95 +1984,136 @@ function openEMIAddModal() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SETTINGS (full page)
+// SETTINGS — full page with a sub-page stack
 // ══════════════════════════════════════════════════════════════
-const APP_VERSION = '1.1.0';
-let _settingsOpen = false;
+const APP_VERSION = '1.2.0';
+let _settingsOpen  = false;
+let settingsStack  = [];   // e.g. ['main','categories']
 
 function openProfile() { openSettings(); }   // avatar single-tap entry point
 
 function openSettings() {
+  settingsStack = ['main'];
+  showSPage('main');
   renderSettings();
   document.getElementById('settings-screen').classList.add('open');
   document.body.classList.add('no-scroll');
   _settingsOpen = true;
-  // Let the hardware/browser back button close Settings instead of leaving the app
-  try { history.pushState({ walletSettings: true }, ''); } catch(e) {}
+  pushSettingsState();
 }
 
-function closeSettings() {
-  const el = document.getElementById('settings-screen');
-  if (!el.classList.contains('open')) return;
-  el.classList.remove('open');
-  document.body.classList.remove('no-scroll');
-  if (_settingsOpen) {
-    _settingsOpen = false;
-    // Pop the state we pushed, unless we're already here because of a back press
-    try { if (history.state && history.state.walletSettings) history.back(); } catch(e) {}
+function openSubPage(name) {
+  settingsStack.push(name);
+  showSPage(name);
+  if (name === 'accounts')   renderAccountRows('settings-accounts-list');
+  if (name === 'categories') { catTab = 'expense'; syncCatSegments(); renderCatList(); markCatClean(); }
+  if (name === 'reports')    { /* report state persists between visits */ }
+  pushSettingsState();
+}
+
+// Back arrow inside a sub-page. Goes through history so the hardware back
+// button and the on-screen arrow behave identically.
+function settingsBack() {
+  try { history.back(); } catch(e) { popSettingsPage(); }
+}
+
+function popSettingsPage() {
+  if (settingsStack.length > 1) {
+    settingsStack.pop();
+    showSPage(settingsStack[settingsStack.length - 1]);
+    if (settingsStack.length === 1) renderSettings();
+    return true;
   }
+  return false;
+}
+
+function showSPage(name) {
+  document.querySelectorAll('#settings-screen .spage').forEach(el =>
+    el.classList.toggle('active', el.id === 'spage-' + name));
+  const active = document.getElementById('spage-' + name);
+  const sc = active && active.querySelector('.spage-scroll');
+  if (sc) sc.scrollTop = 0;
+}
+
+function pushSettingsState() {
+  try { history.pushState({ walletSettings: settingsStack.length }, ''); } catch(e) {}
+}
+
+// Programmatic close (logout, account switch...) — unwinds every state we pushed
+function closeSettings() {
+  if (!_settingsOpen) return;
+  const depth = settingsStack.length;
+  _settingsOpen = false;
+  settingsStack = [];
+  document.getElementById('settings-screen').classList.remove('open');
+  document.body.classList.remove('no-scroll');
+  try { history.go(-depth); } catch(e) {}
 }
 
 window.addEventListener('popstate', () => {
-  if (_settingsOpen) {
-    _settingsOpen = false;
-    document.getElementById('settings-screen').classList.remove('open');
-    document.body.classList.remove('no-scroll');
-  }
+  if (!_settingsOpen) return;
+  if (popSettingsPage()) return;
+  _settingsOpen = false;
+  settingsStack = [];
+  document.getElementById('settings-screen').classList.remove('open');
+  document.body.classList.remove('no-scroll');
 });
+
+const THEME_LABELS = { light:'Light', dark:'Dark', amoled:'AMOLED', glass:'Glass' };
 
 function renderSettings() {
   const u = currentUser || {};
-  const initial = (u.username || '?').charAt(0).toUpperCase();
-  document.getElementById('settings-avatar').textContent = initial;
+  document.getElementById('settings-avatar').textContent = (u.username || '?').charAt(0).toUpperCase();
   document.getElementById('settings-name').textContent   = u.username || 'User';
   document.getElementById('settings-email').textContent  = u.email || '';
   document.getElementById('settings-version').textContent = APP_VERSION;
 
-  // Hero tags
-  const tags = [];
-  tags.push(`<span class="settings-tag">ID ${esc(String(u.id || '—'))}</span>`);
-  if (accounts.length > 1) tags.push(`<span class="settings-tag">${accounts.length} accounts on device</span>`);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if (isStandalone) tags.push('<span class="settings-tag">Installed</span>');
+  const tags = [`<span class="settings-tag">ID ${esc(String(u.id || '—'))}</span>`];
+  if (accounts.length > 1) tags.push(`<span class="settings-tag">${accounts.length} accounts</span>`);
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (standalone) tags.push('<span class="settings-tag">Installed</span>');
   document.getElementById('settings-tags').innerHTML = tags.join('');
 
-  // Account rows
-  renderAccountRows('settings-accounts');
+  document.getElementById('settings-accounts-value').textContent =
+    accounts.length > 1 ? `${accounts.length} accounts` : (u.username || '1');
 
-  // Last sync
+  const catTotal = ['expense','income','loan','emi']
+    .reduce((n,t) => n + getConfigList(t).length, 0);
+  document.getElementById('settings-cat-value').textContent = catTotal + ' active';
+
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+  document.getElementById('settings-theme-value').textContent = THEME_LABELS[theme] || 'Light';
+
   const last = getLastSync();
-  document.getElementById('settings-sync-sub').textContent = last
-    ? 'Last synced ' + relativeTime(last)
-    : 'Fetch the latest from the server';
+  document.getElementById('settings-sync-value').textContent = last ? relativeTime(last) : '—';
 
-  // Log out row wording depends on whether another account is waiting
   const others = accounts.filter(a => !currentUser || String(a.id) !== String(currentUser.id));
-  document.getElementById('settings-logout-sub').textContent = others.length
-    ? `Signs out and switches to ${others[0].username}`
+  document.getElementById('settings-logout-hint').textContent = others.length
+    ? `Switches to ${others[0].username}`
     : 'Sign out of this account';
   document.getElementById('settings-logout-all-row').style.display = accounts.length > 1 ? 'flex' : 'none';
-
-  // Install row only when the browser has actually offered a prompt
   document.getElementById('settings-install-row').style.display = window._installPrompt ? 'flex' : 'none';
+
+  document.getElementById('pref-hide-balance').checked = !!prefs.hideBalance;
+  document.getElementById('pref-decimals').checked     = !!prefs.decimals;
+  document.getElementById('pref-haptics').checked      = !!prefs.haptics;
 }
 
 function getLastSync() {
   try {
     const raw = localStorage.getItem('wallet_cache_' + (currentUser && currentUser.id));
-    if (!raw) return 0;
-    return JSON.parse(raw).cachedAt || 0;
+    return raw ? (JSON.parse(raw).cachedAt || 0) : 0;
   } catch(e) { return 0; }
 }
 
 function relativeTime(ts) {
-  const diff = Math.max(0, Date.now() - ts);
-  const min = Math.floor(diff / 60000);
-  if (min < 1)   return 'just now';
-  if (min < 60)  return `${min} min ago`;
+  const min = Math.floor(Math.max(0, Date.now() - ts) / 60000);
+  if (min < 1)  return 'just now';
+  if (min < 60) return `${min} min ago`;
   const hrs = Math.floor(min / 60);
-  if (hrs < 24)  return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+  if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
+  return days === 1 ? 'yesterday' : `${days}d ago`;
 }
 
 async function syncNow() {
@@ -2134,12 +2127,7 @@ async function syncNow() {
 function clearCacheConfirm() {
   showConfirm(
     'Clear the offline cache for this account?\n\nNothing on the server is touched — the app just re-downloads everything next time.',
-    async () => {
-      clearCache();
-      showToast('Cache cleared');
-      await refreshFromAPI();
-      renderSettings();
-    },
+    async () => { clearCache(); showToast('Cache cleared'); await refreshFromAPI(); renderSettings(); },
     'Clear'
   );
 }
@@ -2149,22 +2137,144 @@ function triggerInstall() {
   if (!p) { showToast('Install is not available right now'); return; }
   p.prompt();
   p.userChoice.then(r => {
-    if (r.outcome === 'accepted') {
-      window._installPrompt = null;
-      showToast('Installing Wallet...');
-      renderSettings();
-    }
+    if (r.outcome === 'accepted') { window._installPrompt = null; showToast('Installing Wallet...'); renderSettings(); }
   }).catch(() => {});
 }
 
-function openConfig() {
-  renderConfigSheet();
-  document.getElementById('config-overlay').classList.add('open');
+// ══════════════════════════════════════════════════════════════
+// PREFERENCES
+// ══════════════════════════════════════════════════════════════
+const PREFS_KEY = 'wallet_prefs_v1';
+let prefs = { hideBalance: true, decimals: false, haptics: true };
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) prefs = Object.assign(prefs, JSON.parse(raw) || {});
+  } catch(e) {}
+}
+function setPref(key, val) {
+  prefs[key] = !!val;
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e) {}
+  if (key === 'hideBalance') { balanceHidden = !!val; updateEyeIcon(); }
+  if (key === 'decimals')    renderAll();
+  else if (key === 'hideBalance') renderDashboard();
+  if (key === 'haptics' && val) buzz(12);
+}
+function buzz(ms) {
+  if (!prefs.haptics) return;
+  try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
 }
 
-function openReport() {
-  document.getElementById('report-overlay').classList.add('open');
+// ══════════════════════════════════════════════════════════════
+// CATEGORIES PAGE
+// ══════════════════════════════════════════════════════════════
+let catTab = 'expense';
+let _catDirty = false;
+
+const CAT_DEFAULTS = {
+  expense: () => DEFAULT_EXPENSE, income: () => DEFAULT_INCOME,
+  loan:    () => DEFAULT_LOAN,    emi:    () => DEFAULT_EMI
+};
+
+// Everything currently switched on for a type (defaults still checked + customs)
+function getConfigList(type) {
+  const defaults = CAT_DEFAULTS[type]();
+  const st = configState[type];
+  return [...defaults.filter(c => st.checked.has(c)), ...st.custom];
 }
+
+function setCatTab(tab) {
+  catTab = tab;
+  syncCatSegments();
+  renderCatList();
+  const inp = document.getElementById('cat-add-input');
+  if (inp) { inp.value = ''; inp.placeholder = `New ${tab} category`; }
+}
+
+function syncCatSegments() {
+  const order = ['expense','income','loan','emi'];
+  document.querySelectorAll('#cat-segmented .segment').forEach((el,i) =>
+    el.classList.toggle('active', order[i] === catTab));
+}
+
+function renderCatList() {
+  const el = document.getElementById('cat-list');
+  if (!el) return;
+  const defaults = CAT_DEFAULTS[catTab]();
+  const st = configState[catTab];
+  let html = '';
+
+  defaults.forEach(cat => {
+    const on = st.checked.has(cat);
+    html += `<div class="cat-row">
+      <div class="cat-dot" style="background:${catColor(cat)}">${esc(cat.charAt(0).toUpperCase())}</div>
+      <div class="cat-name">${esc(cat)}</div>
+      <label class="toggle"><input type="checkbox" ${on ? 'checked' : ''}
+        onchange="toggleCat('${esc(cat).replace(/'/g,"\\'")}',this.checked)"><span class="toggle-slider"></span></label>
+    </div>`;
+  });
+
+  st.custom.forEach(cat => {
+    html += `<div class="cat-row">
+      <div class="cat-dot" style="background:${catColor(cat)}">${esc(cat.charAt(0).toUpperCase())}</div>
+      <div class="cat-name">${esc(cat)}<span class="cat-badge">Custom</span></div>
+      <button class="cat-del" onclick="removeCustomCat('${esc(cat).replace(/'/g,"\\'")}')" title="Delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+    </div>`;
+  });
+
+  if (!html) html = '<div style="text-align:center;color:var(--text3);padding:26px;font-size:13px">Nothing here yet</div>';
+  el.innerHTML = html;
+}
+
+// Deterministic colour per category name so the dots stay stable across reloads
+function catColor(name) {
+  const palette = ['#1a73e8','#8b5cf6','#10b981','#f43f5e','#f59e0b','#06b6d4','#ec4899','#84cc16','#6366f1','#f97316'];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+
+function toggleCat(cat, on) {
+  if (on) configState[catTab].checked.add(cat);
+  else    configState[catTab].checked.delete(cat);
+  markCatDirty();
+}
+
+function addCatFromPage() {
+  const inp = document.getElementById('cat-add-input');
+  const val = (inp.value || '').trim();
+  if (!val) { showToast('Enter a category name'); return; }
+  const exists = CAT_DEFAULTS[catTab]().includes(val) || configState[catTab].custom.includes(val);
+  if (exists) { showToast('That category already exists'); return; }
+  configState[catTab].custom.push(val);
+  inp.value = '';
+  renderCatList();
+  markCatDirty();
+}
+
+function removeCustomCat(cat) {
+  showConfirm(`Remove the custom category "${cat}"?\n\nEntries already using it keep their category.`, () => {
+    configState[catTab].custom = configState[catTab].custom.filter(c => c !== cat);
+    renderCatList();
+    markCatDirty();
+  }, 'Remove');
+}
+
+function markCatDirty() {
+  _catDirty = true;
+  document.getElementById('cat-savebar').classList.add('show');
+}
+function markCatClean() {
+  _catDirty = false;
+  document.getElementById('cat-savebar').classList.remove('show');
+}
+
+function openConfig() { openSubPage('categories'); }
+
+function openReport() { openSubPage('reports'); }
 
 // ── ADD MODAL TABS ──
 function switchAddTab(tab) {
