@@ -571,3 +571,32 @@ select option{background:var(--surface);color:var(--text);}
 [data-theme="glass"] input,[data-theme="glass"] select,[data-theme="glass"] textarea{
   -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
 }
+
+/* ── ACCOUNT SWITCHER ── */
+.account-hint{font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.5;}
+.account-row{display:flex;align-items:center;gap:12px;padding:12px 14px;
+  background:var(--surface2);border:1.5px solid var(--border);border-radius:14px;
+  margin-bottom:8px;cursor:pointer;transition:all .18s;}
+.account-row:active{transform:scale(.985);}
+.account-row.active{border-color:var(--blue);background:rgba(var(--blue-rgb),.07);}
+.account-avatar{width:42px;height:42px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue-dark1));
+  color:#fff;font-size:17px;font-weight:700;}
+.account-info{flex:1;min-width:0;}
+.account-name{font-size:14px;font-weight:700;color:var(--text);
+  display:flex;align-items:center;gap:8px;}
+.account-current{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--blue);background:rgba(var(--blue-rgb),.13);padding:2px 7px;border-radius:5px;}
+.account-email{font-size:11px;color:var(--text3);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.account-check{width:20px;height:20px;flex-shrink:0;}
+.account-remove{background:none;border:none;color:var(--text3);cursor:pointer;
+  padding:6px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;}
+.account-remove svg{width:15px;height:15px;}
+.account-remove:active{background:rgba(217,48,37,.1);color:var(--red);}
+/* Dot on the avatar when more than one account is signed in */
+.avatar-btn.multi{position:relative;}
+.avatar-btn.multi::after{content:'';position:absolute;bottom:0;right:0;
+  width:10px;height:10px;border-radius:50%;background:var(--green);
+  border:2px solid var(--surface);}
