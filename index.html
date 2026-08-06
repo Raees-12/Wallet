@@ -315,88 +315,182 @@
   </div>
 </div>
 
-<!-- PROFILE SHEET -->
-<div class="overlay" id="profile-overlay" onclick="closeOverlay('profile-overlay',event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Profile</div>
-    <div class="profile-user-block">
-      <div class="profile-avatar" id="profile-avatar-big">R</div>
-      <div>
-        <div class="profile-name" id="profile-name">User</div>
-        <div class="profile-email" id="profile-email"></div>
-      </div>
+<!-- SETTINGS — FULL PAGE -->
+<div id="settings-screen" class="settings-screen">
+  <div class="settings-topbar">
+    <button class="settings-back" onclick="closeSettings()" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="settings-topbar-title">Settings</div>
+  </div>
+
+  <div class="settings-body">
+
+    <!-- PROFILE HERO -->
+    <div class="settings-hero">
+      <div class="settings-hero-avatar" id="settings-avatar">R</div>
+      <div class="settings-hero-name" id="settings-name">User</div>
+      <div class="settings-hero-email" id="settings-email"></div>
+      <div class="settings-hero-tags" id="settings-tags"></div>
     </div>
-    <div class="profile-sec-title">Tools</div>
-    <div class="profile-row" onclick="openReport()">
-      <div class="profile-row-left">
-        <div class="profile-row-icon" style="background:rgba(var(--blue-rgb),.12)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+
+    <!-- ACCOUNTS -->
+    <div class="settings-group">
+      <div class="settings-group-title">Accounts</div>
+      <div class="settings-card">
+        <div id="settings-accounts"></div>
+        <div class="settings-row" onclick="startAddAccount()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(var(--blue-rgb),.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <div><div class="settings-row-label">Add account</div><div class="settings-row-sub">Sign in to another Wallet account</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
-        <div><div class="profile-row-label">Reports</div><div class="profile-row-sub">PDF & CSV export</div></div>
       </div>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      <div class="settings-note">Double-tap your profile picture to jump to the next account, or hold it to pick one.</div>
     </div>
-    <div class="profile-row" onclick="openConfig()">
-      <div class="profile-row-left">
-        <div class="profile-row-icon" style="background:rgba(52,168,83,.12)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+
+    <!-- APPEARANCE -->
+    <div class="settings-group">
+      <div class="settings-group-title">Appearance</div>
+      <div class="settings-card settings-card-pad">
+        <div class="settings-sub-label">Theme</div>
+        <div class="theme-grid" id="theme-grid">
+          <div class="theme-card" data-theme-opt="light" onclick="applyTheme('light')">
+            <div class="theme-preview theme-preview-light"><span></span><span></span></div>
+            <div class="theme-card-label">Light</div>
+          </div>
+          <div class="theme-card" data-theme-opt="dark" onclick="applyTheme('dark')">
+            <div class="theme-preview theme-preview-dark"><span></span><span></span></div>
+            <div class="theme-card-label">Dark</div>
+          </div>
+          <div class="theme-card" data-theme-opt="amoled" onclick="applyTheme('amoled')">
+            <div class="theme-preview theme-preview-amoled"><span></span><span></span></div>
+            <div class="theme-card-label">AMOLED</div>
+          </div>
+          <div class="theme-card" data-theme-opt="glass" onclick="applyTheme('glass')">
+            <div class="theme-preview theme-preview-glass"><span></span><span></span></div>
+            <div class="theme-card-label">Glass</div>
+          </div>
         </div>
-        <div><div class="profile-row-label">Configuration</div><div class="profile-row-sub">Manage categories</div></div>
-      </div>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </div>
-    <div class="profile-sec-title">Appearance</div>
-    <div class="theme-grid" id="theme-grid">
-      <div class="theme-card" data-theme-opt="light" onclick="applyTheme('light')">
-        <div class="theme-preview theme-preview-light"><span></span><span></span></div>
-        <div class="theme-card-label">Light</div>
-      </div>
-      <div class="theme-card" data-theme-opt="dark" onclick="applyTheme('dark')">
-        <div class="theme-preview theme-preview-dark"><span></span><span></span></div>
-        <div class="theme-card-label">Dark</div>
-      </div>
-      <div class="theme-card" data-theme-opt="amoled" onclick="applyTheme('amoled')">
-        <div class="theme-preview theme-preview-amoled"><span></span><span></span></div>
-        <div class="theme-card-label">AMOLED</div>
-      </div>
-      <div class="theme-card" data-theme-opt="glass" onclick="applyTheme('glass')">
-        <div class="theme-preview theme-preview-glass"><span></span><span></span></div>
-        <div class="theme-card-label">Glass</div>
-      </div>
-    </div>
-    <div class="profile-row-sub" style="margin-bottom:10px">Accent color</div>
-    <div class="accent-row" id="accent-row">
-      <div class="accent-dot" data-accent="#1a73e8" style="background:#1a73e8;color:#1a73e8" onclick="setAccent('#1a73e8')"></div>
-      <div class="accent-dot" data-accent="#8b5cf6" style="background:#8b5cf6;color:#8b5cf6" onclick="setAccent('#8b5cf6')"></div>
-      <div class="accent-dot" data-accent="#10b981" style="background:#10b981;color:#10b981" onclick="setAccent('#10b981')"></div>
-      <div class="accent-dot" data-accent="#f43f5e" style="background:#f43f5e;color:#f43f5e" onclick="setAccent('#f43f5e')"></div>
-      <div class="accent-dot" data-accent="#f59e0b" style="background:#f59e0b;color:#f59e0b" onclick="setAccent('#f59e0b')"></div>
-      <div class="accent-dot" data-accent="#06b6d4" style="background:#06b6d4;color:#06b6d4" onclick="setAccent('#06b6d4')"></div>
-      <label class="accent-dot accent-dot-custom" id="accent-custom-dot" title="Custom color">
-        <input type="color" id="accent-picker" value="#1a73e8" oninput="setAccent(this.value)" style="opacity:0;position:absolute;width:1px;height:1px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
-      </label>
-    </div>
-    <div class="profile-sec-title">Account</div>
-    <div class="profile-row" onclick="closeOverlay('profile-overlay');openAccountSwitcher()">
-      <div class="profile-row-left">
-        <div class="profile-row-icon" style="background:rgba(var(--blue-rgb),.12)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <div class="settings-divider"></div>
+        <div class="settings-sub-label">Accent colour</div>
+        <div class="accent-row" id="accent-row">
+          <div class="accent-dot" data-accent="#1a73e8" style="background:#1a73e8;color:#1a73e8" onclick="setAccent('#1a73e8')"></div>
+          <div class="accent-dot" data-accent="#8b5cf6" style="background:#8b5cf6;color:#8b5cf6" onclick="setAccent('#8b5cf6')"></div>
+          <div class="accent-dot" data-accent="#10b981" style="background:#10b981;color:#10b981" onclick="setAccent('#10b981')"></div>
+          <div class="accent-dot" data-accent="#f43f5e" style="background:#f43f5e;color:#f43f5e" onclick="setAccent('#f43f5e')"></div>
+          <div class="accent-dot" data-accent="#f59e0b" style="background:#f59e0b;color:#f59e0b" onclick="setAccent('#f59e0b')"></div>
+          <div class="accent-dot" data-accent="#06b6d4" style="background:#06b6d4;color:#06b6d4" onclick="setAccent('#06b6d4')"></div>
+          <label class="accent-dot accent-dot-custom" id="accent-custom-dot" title="Custom colour">
+            <input type="color" id="accent-picker" value="#1a73e8" oninput="setAccent(this.value)" style="opacity:0;position:absolute;width:1px;height:1px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+          </label>
         </div>
-        <div><div class="profile-row-label">Switch Account</div><div class="profile-row-sub" id="profile-account-sub">Manage accounts</div></div>
       </div>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     </div>
-    <div class="profile-row" onclick="doLogout()">
-      <div class="profile-row-left">
-        <div class="profile-row-icon" style="background:rgba(217,48,37,.1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+
+    <!-- TOOLS -->
+    <div class="settings-group">
+      <div class="settings-group-title">Tools</div>
+      <div class="settings-card">
+        <div class="settings-row" onclick="openReport()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(var(--blue-rgb),.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            </div>
+            <div><div class="settings-row-label">Reports</div><div class="settings-row-sub">Generate and export PDF or CSV</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
-        <div><div class="profile-row-label" style="color:var(--red)">Log Out</div><div class="profile-row-sub">Sign out</div></div>
+        <div class="settings-row" onclick="openConfig()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(52,168,83,.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <div><div class="settings-row-label">Categories</div><div class="settings-row-sub">Expense, income, loan and EMI types</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     </div>
+
+    <!-- DATA -->
+    <div class="settings-group">
+      <div class="settings-group-title">Data &amp; Storage</div>
+      <div class="settings-card">
+        <div class="settings-row" onclick="syncNow()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(6,182,212,.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </div>
+            <div><div class="settings-row-label">Sync now</div><div class="settings-row-sub" id="settings-sync-sub">Fetch the latest from the server</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="clearCacheConfirm()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(249,171,0,.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
+            </div>
+            <div><div class="settings-row-label">Clear offline cache</div><div class="settings-row-sub">Forces a fresh download next time</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="settings-group">
+      <div class="settings-group-title">About</div>
+      <div class="settings-card">
+        <div class="settings-row settings-row-static">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(139,92,246,.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </div>
+            <div><div class="settings-row-label">Version</div><div class="settings-row-sub" id="settings-version">1.0.0</div></div>
+          </div>
+        </div>
+        <div class="settings-row" id="settings-install-row" style="display:none" onclick="triggerInstall()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(52,168,83,.12)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div><div class="settings-row-label">Install app</div><div class="settings-row-sub">Add Wallet to your home screen</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGN OUT -->
+    <div class="settings-group">
+      <div class="settings-card">
+        <div class="settings-row" onclick="doLogout()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(217,48,37,.1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <div><div class="settings-row-label" style="color:var(--red)">Log out</div><div class="settings-row-sub" id="settings-logout-sub">Sign out of this account</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" id="settings-logout-all-row" onclick="logoutAllConfirm()">
+          <div class="settings-row-left">
+            <div class="settings-row-icon" style="background:rgba(217,48,37,.1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="8" x2="17" y2="14"/><line x1="17" y1="8" x2="23" y2="14"/></svg>
+            </div>
+            <div><div class="settings-row-label" style="color:var(--red)">Log out of all accounts</div><div class="settings-row-sub">Removes every account from this device</div></div>
+          </div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-footer">Wallet · Smart finance tracking</div>
   </div>
 </div>
 
@@ -607,7 +701,7 @@
 <script src="app.js"></script>
 
 <!-- PWA Install Banner -->
-<div id="pwa-install-bar" style="display:none;position:fixed;bottom:calc(var(--nav-h) + 12px);
+<div id="pwa-install-bar" style="position:fixed;bottom:calc(var(--nav-h) + 12px);
   left:12px;right:12px;background:var(--surface);border:1px solid var(--border);
   border-radius:16px;padding:12px 16px;box-shadow:var(--shadow-lg);
   display:none;align-items:center;gap:12px;z-index:150;">
@@ -659,12 +753,14 @@ function applyTheme(theme) {
 
 // ── PWA Install Prompt ──
 let _installPrompt = null;
+window._installPrompt = null;
 const installBar = document.getElementById('pwa-install-bar');
 const installBtn = document.getElementById('pwa-install-btn');
 
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _installPrompt = e;
+  window._installPrompt = e;
   // Show install bar after a short delay
   setTimeout(() => {
     if (installBar) installBar.style.display = 'flex';
@@ -679,6 +775,7 @@ if (installBtn) {
     if (result.outcome === 'accepted') {
       installBar.style.display = 'none';
       _installPrompt = null;
+      window._installPrompt = null;
     }
   });
 }
@@ -687,6 +784,7 @@ if (installBtn) {
 window.addEventListener('appinstalled', () => {
   if (installBar) installBar.style.display = 'none';
   _installPrompt = null;
+  window._installPrompt = null;
 });
 </script>
 </body>
