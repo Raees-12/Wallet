@@ -424,7 +424,13 @@ function openAccountSwitcher() {
 }
 
 function renderAccountSwitcher() {
-  const el = document.getElementById('account-list');
+  renderAccountRows('account-list');
+}
+
+// Renders the account list into any container — used by both the long-press
+// sheet and the Accounts section of the Settings page.
+function renderAccountRows(containerId) {
+  const el = document.getElementById(containerId);
   if (!el) return;
   if (!accounts.length) {
     el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No accounts saved yet</div>';
@@ -490,6 +496,7 @@ async function switchAccount(id) {
   const a = accounts.find(x => String(x.id) === String(id));
   if (!a) return;
   closeOverlay('account-overlay');
+  closeSettings();
   if (currentUser && String(currentUser.id) === String(id)) return;
   currentUser = { id: a.id, username: a.username, email: a.email };
   saveSession(currentUser);
@@ -504,6 +511,7 @@ async function switchAccount(id) {
 function startAddAccount() {
   addingAccount = true;
   closeOverlay('account-overlay');
+  closeSettings();
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
   document.getElementById('login-err').textContent = '';
@@ -529,11 +537,13 @@ function removeAccountConfirm(id, name) {
         if (accounts.length) { switchAccount(accounts[0].id); return; }
         clearSession(); currentUser = null;
         closeOverlay('account-overlay');
+        closeSettings();
         showScreen('login-screen');
         return;
       }
       updateAccountBadge();
       renderAccountSwitcher();
+      if (document.getElementById('settings-screen').classList.contains('open')) renderSettings();
     },
     'Remove'
   );
@@ -550,6 +560,7 @@ function logoutAllConfirm() {
       currentUser = null;
       appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
       closeOverlay('account-overlay');
+      closeSettings();
       document.getElementById('login-user').value = '';
       document.getElementById('login-pass').value = '';
       document.getElementById('login-err').textContent = '';
@@ -565,10 +576,7 @@ function logoutAllConfirm() {
 function updateAccountBadge() {
   const av = document.getElementById('topbar-avatar');
   if (av) av.classList.toggle('multi', accounts.length > 1);
-  const sub = document.getElementById('profile-account-sub');
-  if (sub) sub.textContent = accounts.length > 1
-    ? `${accounts.length} accounts on this device`
-    : 'Add another account';
+  if (document.getElementById('settings-screen').classList.contains('open')) renderSettings();
 }
 
 // ── INIT ──
@@ -631,17 +639,15 @@ function initMainScreen() {
   const u = currentUser;
   document.getElementById('topbar-greeting').textContent = 'Hi, '+u.username;
   document.getElementById('topbar-avatar').textContent = u.username[0].toUpperCase();
-  document.getElementById('profile-avatar-big').textContent = u.username[0].toUpperCase();
-  document.getElementById('profile-name').textContent = u.username;
-  document.getElementById('profile-email').textContent = u.email||'';
   updateAccountBadge();
+  if (document.getElementById('settings-screen').classList.contains('open')) renderSettings();
 }
 
 // Logs out of the CURRENT account only. If other accounts are signed in on
 // this device, we hop straight to the next one instead of dumping the user
 // back at the login screen.
 function doLogout() {
-  closeOverlay('profile-overlay');
+  closeSettings();
   if (currentUser) {
     clearCacheFor(currentUser.id);
     dropAccount(currentUser.id);
@@ -2025,8 +2031,130 @@ function openEMIAddModal() {
   populateEMICatSelect();
 }
 
-function openProfile() {
-  document.getElementById('profile-overlay').classList.add('open');
+// ══════════════════════════════════════════════════════════════
+// SETTINGS (full page)
+// ══════════════════════════════════════════════════════════════
+const APP_VERSION = '1.1.0';
+let _settingsOpen = false;
+
+function openProfile() { openSettings(); }   // avatar single-tap entry point
+
+function openSettings() {
+  renderSettings();
+  document.getElementById('settings-screen').classList.add('open');
+  document.body.classList.add('no-scroll');
+  _settingsOpen = true;
+  // Let the hardware/browser back button close Settings instead of leaving the app
+  try { history.pushState({ walletSettings: true }, ''); } catch(e) {}
+}
+
+function closeSettings() {
+  const el = document.getElementById('settings-screen');
+  if (!el.classList.contains('open')) return;
+  el.classList.remove('open');
+  document.body.classList.remove('no-scroll');
+  if (_settingsOpen) {
+    _settingsOpen = false;
+    // Pop the state we pushed, unless we're already here because of a back press
+    try { if (history.state && history.state.walletSettings) history.back(); } catch(e) {}
+  }
+}
+
+window.addEventListener('popstate', () => {
+  if (_settingsOpen) {
+    _settingsOpen = false;
+    document.getElementById('settings-screen').classList.remove('open');
+    document.body.classList.remove('no-scroll');
+  }
+});
+
+function renderSettings() {
+  const u = currentUser || {};
+  const initial = (u.username || '?').charAt(0).toUpperCase();
+  document.getElementById('settings-avatar').textContent = initial;
+  document.getElementById('settings-name').textContent   = u.username || 'User';
+  document.getElementById('settings-email').textContent  = u.email || '';
+  document.getElementById('settings-version').textContent = APP_VERSION;
+
+  // Hero tags
+  const tags = [];
+  tags.push(`<span class="settings-tag">ID ${esc(String(u.id || '—'))}</span>`);
+  if (accounts.length > 1) tags.push(`<span class="settings-tag">${accounts.length} accounts on device</span>`);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isStandalone) tags.push('<span class="settings-tag">Installed</span>');
+  document.getElementById('settings-tags').innerHTML = tags.join('');
+
+  // Account rows
+  renderAccountRows('settings-accounts');
+
+  // Last sync
+  const last = getLastSync();
+  document.getElementById('settings-sync-sub').textContent = last
+    ? 'Last synced ' + relativeTime(last)
+    : 'Fetch the latest from the server';
+
+  // Log out row wording depends on whether another account is waiting
+  const others = accounts.filter(a => !currentUser || String(a.id) !== String(currentUser.id));
+  document.getElementById('settings-logout-sub').textContent = others.length
+    ? `Signs out and switches to ${others[0].username}`
+    : 'Sign out of this account';
+  document.getElementById('settings-logout-all-row').style.display = accounts.length > 1 ? 'flex' : 'none';
+
+  // Install row only when the browser has actually offered a prompt
+  document.getElementById('settings-install-row').style.display = window._installPrompt ? 'flex' : 'none';
+}
+
+function getLastSync() {
+  try {
+    const raw = localStorage.getItem('wallet_cache_' + (currentUser && currentUser.id));
+    if (!raw) return 0;
+    return JSON.parse(raw).cachedAt || 0;
+  } catch(e) { return 0; }
+}
+
+function relativeTime(ts) {
+  const diff = Math.max(0, Date.now() - ts);
+  const min = Math.floor(diff / 60000);
+  if (min < 1)   return 'just now';
+  if (min < 60)  return `${min} min ago`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24)  return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+async function syncNow() {
+  showToast('Syncing...');
+  clearCache();
+  await refreshFromAPI();
+  renderSettings();
+  showToast('Up to date');
+}
+
+function clearCacheConfirm() {
+  showConfirm(
+    'Clear the offline cache for this account?\n\nNothing on the server is touched — the app just re-downloads everything next time.',
+    async () => {
+      clearCache();
+      showToast('Cache cleared');
+      await refreshFromAPI();
+      renderSettings();
+    },
+    'Clear'
+  );
+}
+
+function triggerInstall() {
+  const p = window._installPrompt;
+  if (!p) { showToast('Install is not available right now'); return; }
+  p.prompt();
+  p.userChoice.then(r => {
+    if (r.outcome === 'accepted') {
+      window._installPrompt = null;
+      showToast('Installing Wallet...');
+      renderSettings();
+    }
+  }).catch(() => {});
 }
 
 function openConfig() {
