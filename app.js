@@ -608,6 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMainScreen();
     showScreen('main-screen');
     loadAllData();
+    handleLaunchAction();
   }
   updateAccountBadge();
 });
@@ -2007,7 +2008,7 @@ function openSubPage(name) {
   showSPage(name);
   if (name === 'accounts')   renderAccountRows('settings-accounts-list');
   if (name === 'categories') { catTab = 'expense'; syncCatSegments(); renderCatList(); markCatClean(); }
-  if (name === 'reports')    { /* report state persists between visits */ }
+  if (name === 'widgets')    renderWidgets();
   pushSettingsState();
 }
 
@@ -2139,6 +2140,227 @@ function triggerInstall() {
   p.userChoice.then(r => {
     if (r.outcome === 'accepted') { window._installPrompt = null; showToast('Installing Wallet...'); renderSettings(); }
   }).catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════════
+// WIDGETS & HOME SCREEN SHORTCUTS
+// The shortcuts live in manifest.json. Long-pressing the installed app icon
+// exposes them, and on Android each one can be dragged onto the home screen
+// as its own icon. handleLaunchAction() below catches the ?action= they open.
+// ══════════════════════════════════════════════════════════════
+let _widgetIndex = 0;
+
+function renderWidgets() {
+  const stage = document.getElementById('widget-stage');
+  const dots  = document.getElementById('widget-dots');
+  if (!stage) return;
+
+  const bal   = calcBalance();
+  const month = monthTotals();
+  const pct   = month.income > 0 ? Math.min(100, Math.round(month.expense / month.income * 100)) : 0;
+  const name  = (currentUser && currentUser.username) || 'Wallet';
+
+  const cards = [
+    // Balance
+    `<div class="wgt wgt-balance">
+       <div class="wgt-top"><span class="wgt-brand">Wallet</span><span class="wgt-user">${esc(name)}</span></div>
+       <div class="wgt-label">Balance</div>
+       <div class="wgt-amount">${fmt(bal)}</div>
+       <div class="wgt-split">
+         <div><span class="wgt-dot up"></span>In ${fmt(month.income)}</div>
+         <div><span class="wgt-dot down"></span>Out ${fmt(month.expense)}</div>
+       </div>
+     </div>`,
+    // Quick add
+    `<div class="wgt wgt-quick">
+       <div class="wgt-top"><span class="wgt-brand">Quick add</span></div>
+       <div class="wgt-actions">
+         <div class="wgt-act red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Expense</span></div>
+         <div class="wgt-act green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Income</span></div>
+         <div class="wgt-act purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Loan</span></div>
+         <div class="wgt-act blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Report</span></div>
+       </div>
+     </div>`,
+    // This month
+    `<div class="wgt wgt-month">
+       <div class="wgt-top"><span class="wgt-brand">This month</span><span class="wgt-user">${esc(monthLabel())}</span></div>
+       <div class="wgt-amount sm">${fmt(month.expense)}<span class="wgt-of">of ${fmt(month.income)}</span></div>
+       <div class="wgt-bar"><div class="wgt-bar-fill" style="width:${pct}%"></div></div>
+       <div class="wgt-split"><div>${pct}% of income spent</div><div>${fmt(Math.max(0, month.income - month.expense))} left</div></div>
+     </div>`
+  ];
+
+  stage.innerHTML = cards[_widgetIndex] || cards[0];
+  dots.innerHTML = cards.map((_, i) =>
+    `<div class="widget-dot ${i === _widgetIndex ? 'active' : ''}" onclick="setWidget(${i})"></div>`).join('');
+
+  // Platform-specific instructions — no point telling an iPhone user to long-press
+  const ua = navigator.userAgent;
+  const isAndroid = /Android/i.test(ua);
+  const isIOS     = /iPhone|iPad|iPod/i.test(ua);
+  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+  let how;
+  if (!installed) {
+    how = 'Install Wallet to your home screen first — then long-press the app icon to reach these shortcuts.';
+  } else if (isAndroid) {
+    how = 'Long-press the Wallet icon on your home screen. The four shortcuts below appear — drag any one onto the home screen to pin it as its own icon.';
+  } else if (isIOS) {
+    how = 'iOS does not expose web app shortcuts. You can still add Wallet to your home screen and use the quick actions inside the app.';
+  } else {
+    how = 'Right-click the Wallet icon in your taskbar or app list to reach these shortcuts.';
+  }
+  document.getElementById('widget-howto').textContent = how;
+
+  const callout = document.getElementById('widget-callout');
+  callout.innerHTML = isAndroid
+    ? `<strong>About true home screen widgets</strong>
+       Android only allows installed native apps to draw live widgets. Wallet is a web app, so the pinned shortcuts above are the closest equivalent — they open the exact screen in one tap. The previews show what each shortcut leads to.`
+    : `<strong>About true home screen widgets</strong>
+       Live home screen widgets are a native-app feature that web apps cannot draw on most platforms. The pinned shortcuts above are the supported equivalent and open the exact screen in one tap.`;
+}
+
+function setWidget(i) { _widgetIndex = i; renderWidgets(); }
+
+// All-time balance, using the same field names as the dashboard
+function calcBalance() {
+  const inc = appData.income.reduce((s,r)   => s + Number(r['Income Amount']  || 0), 0);
+  const exp = appData.expenses.reduce((s,r) => s + Number(r['Expense Amount'] || 0), 0);
+  return inc - exp;
+}
+
+function monthTotals() {
+  const { from, to } = getDateRange('month');
+  const within = r => { const ts = parseSheetDate(r['Date']); return ts >= from && ts <= to; };
+  return {
+    income:  appData.income.filter(within).reduce((s,r)   => s + Number(r['Income Amount']  || 0), 0),
+    expense: appData.expenses.filter(within).reduce((s,r) => s + Number(r['Expense Amount'] || 0), 0)
+  };
+}
+
+function monthLabel() {
+  const now = new Date();
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${names[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+// Runs once at startup — routes ?action=... from a pinned shortcut
+function handleLaunchAction() {
+  let action;
+  try { action = new URLSearchParams(location.search).get('action'); } catch(e) {}
+  if (!action) return;
+  try { history.replaceState({}, '', location.pathname); } catch(e) {}
+  setTimeout(() => {
+    switch (action) {
+      case 'add-expense': switchPage('expenses'); openAddModal(); switchAddTab('expense'); break;
+      case 'add-income':  switchPage('income');   openAddModal(); switchAddTab('income');  break;
+      case 'loans':       switchPage('loans');   break;
+      case 'emis':        switchPage('emis');    break;
+      case 'reports':     openSettings(); openSubPage('reports'); break;
+    }
+  }, 350);
+}
+
+// ══════════════════════════════════════════════════════════════
+// FEEDBACK — bug reports and feature requests
+// ══════════════════════════════════════════════════════════════
+const SUPPORT_EMAIL = 'you@example.com';   // ← change this to your address
+
+const FB_AREAS = {
+  bug:     ['Expenses','Income','Loans','EMIs','Reports','Sync / login','Appearance','Something else'],
+  feature: ['Expenses','Income','Loans','EMIs','Reports','Budgets','Notifications','Something else']
+};
+let fbMode = 'bug';
+let fbArea = '';
+
+function openFeedback(mode) {
+  fbMode = mode;
+  fbArea = '';
+  openSubPage('feedback');
+  const isBug = mode === 'bug';
+  document.getElementById('fb-title').textContent = isBug ? 'Report a bug' : 'Suggest a feature';
+  document.getElementById('fb-intro').textContent = isBug
+    ? 'Tell me what happened and what you expected instead. The more specific, the faster it gets fixed.'
+    : 'Describe what you want to be able to do and why it would help. Rough ideas are welcome.';
+  document.getElementById('fb-cat-label').textContent = isBug ? 'Where did it happen?' : 'Which area?';
+  document.getElementById('fb-subject').value = '';
+  document.getElementById('fb-body').value = '';
+  document.getElementById('fb-body').placeholder = isBug
+    ? 'What I did:\n\nWhat happened:\n\nWhat I expected:'
+    : 'What I want to do:\n\nWhy it would help:';
+  renderFbChips();
+  renderDiag();
+}
+
+function renderFbChips() {
+  document.getElementById('fb-chips').innerHTML = FB_AREAS[fbMode]
+    .map(a => `<div class="fb-chip ${fbArea === a ? 'active' : ''}" onclick="setFbArea('${esc(a)}')">${esc(a)}</div>`)
+    .join('');
+}
+function setFbArea(a) { fbArea = (fbArea === a ? '' : a); renderFbChips(); }
+
+function diagBlock() {
+  const ua = navigator.userAgent;
+  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  const last = getLastSync();
+  return [
+    `App version : ${APP_VERSION}`,
+    `Theme       : ${document.documentElement.getAttribute('data-theme') || 'light'}`,
+    `Display     : ${installed ? 'installed app' : 'browser'}`,
+    `Accounts    : ${accounts.length}`,
+    `Last sync   : ${last ? new Date(last).toLocaleString() : 'never'}`,
+    `Online      : ${navigator.onLine ? 'yes' : 'no'}`,
+    `Screen      : ${window.innerWidth}x${window.innerHeight}`,
+    `Browser     : ${ua}`
+  ].join('\n');
+}
+
+function renderDiag() {
+  const on = document.getElementById('fb-diag').checked;
+  const pre = document.getElementById('fb-diag-preview');
+  pre.style.display = on ? 'block' : 'none';
+  if (on) pre.textContent = diagBlock();
+}
+
+function buildFeedback() {
+  const subject = (document.getElementById('fb-subject').value || '').trim();
+  const body    = (document.getElementById('fb-body').value || '').trim();
+  const tag     = fbMode === 'bug' ? 'Bug' : 'Feature';
+  const line    = `[${tag}]${fbArea ? ' ' + fbArea + ' —' : ''} ${subject || 'No summary'}`;
+  let text = body || '(no details given)';
+  if (document.getElementById('fb-diag').checked) {
+    text += '\n\n----- device info -----\n' + diagBlock();
+  }
+  return { subject: line, body: text };
+}
+
+function sendFeedback() {
+  const subject = (document.getElementById('fb-subject').value || '').trim();
+  const body    = (document.getElementById('fb-body').value || '').trim();
+  if (!subject && !body) { showToast('Add a summary or some details first'); return; }
+  const fb = buildFeedback();
+  const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(fb.subject)}&body=${encodeURIComponent(fb.body)}`;
+  try {
+    window.location.href = url;
+    showToast('Opening your email app...');
+  } catch(e) {
+    showToast('Could not open email — copy it instead');
+  }
+}
+
+async function copyFeedback() {
+  const fb = buildFeedback();
+  const text = fb.subject + '\n\n' + fb.body;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Copied to clipboard');
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); showToast('Copied to clipboard'); }
+    catch(err) { showToast('Copy failed'); }
+    document.body.removeChild(ta);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
