@@ -38,6 +38,8 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
       Sign In
     </button>
+    <button class="btn btn-ghost" id="login-cancel" style="display:none;margin-top:10px"
+      onclick="cancelAddAccount()">Cancel</button>
   </div>
 </div>
 
@@ -47,7 +49,8 @@
     <img id="topbar-logo" src="Assets/l_logo.png" class="app-logo topbar-logo" alt="Wallet">
     <div class="topbar-right">
       <span class="topbar-greeting" id="topbar-greeting"></span>
-      <div class="avatar-btn" id="topbar-avatar" onclick="openProfile()">R</div>
+      <div class="avatar-btn" id="topbar-avatar" onclick="handleAvatarTap()"
+        title="Tap for profile · Double-tap to switch account">R</div>
     </div>
   </div>
 
@@ -376,6 +379,15 @@
       </label>
     </div>
     <div class="profile-sec-title">Account</div>
+    <div class="profile-row" onclick="closeOverlay('profile-overlay');openAccountSwitcher()">
+      <div class="profile-row-left">
+        <div class="profile-row-icon" style="background:rgba(var(--blue-rgb),.12)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div><div class="profile-row-label">Switch Account</div><div class="profile-row-sub" id="profile-account-sub">Manage accounts</div></div>
+      </div>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
     <div class="profile-row" onclick="doLogout()">
       <div class="profile-row-left">
         <div class="profile-row-icon" style="background:rgba(217,48,37,.1)">
@@ -433,6 +445,21 @@
     <div class="report-output" id="report-output">
       <div class="report-placeholder">Select a period and generate your report</div>
     </div>
+  </div>
+</div>
+
+<!-- ACCOUNT SWITCHER SHEET -->
+<div class="overlay" id="account-overlay" onclick="closeOverlay('account-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Accounts</div>
+    <p class="account-hint">Double-tap your profile picture any time to switch accounts.</p>
+    <div id="account-list"></div>
+    <button class="btn btn-ghost" style="margin-top:14px" onclick="startAddAccount()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add account
+    </button>
+    <button class="btn btn-danger" onclick="logoutAllConfirm()">Log out of all accounts</button>
   </div>
 </div>
 
@@ -494,7 +521,7 @@
       <button onclick="confirmCancel()" style="flex:1;padding:12px;border-radius:10px;
         border:1.5px solid var(--border);background:var(--surface2);color:var(--text);
         font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
-      <button onclick="confirmOK()" style="flex:1;padding:12px;border-radius:10px;
+      <button id="confirm-ok-btn" onclick="confirmOK()" style="flex:1;padding:12px;border-radius:10px;
         border:none;background:var(--red);color:#fff;
         font-size:14px;font-weight:700;cursor:pointer">Delete</button>
     </div>
