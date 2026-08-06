@@ -107,6 +107,13 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
 
 function fmt(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
 
+// Escape text before it goes into innerHTML / inline onclick attributes
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // Format with small superscript decimal part
 function fmtSplit(n) {
   const num = Number(n);
@@ -205,6 +212,41 @@ function clearSession() {
   try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem('wallet_user'); } catch(e) {}
   try { document.cookie = `${SESSION_KEY}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`; } catch(e) {}
 }
+// ══════════════════════════════════════════════════════════════
+// MULTI-ACCOUNT
+// Every API call is keyed by userId only, so switching accounts is just a
+// matter of swapping currentUser — no re-authentication needed. Accounts are
+// remembered on this device until explicitly removed.
+// ══════════════════════════════════════════════════════════════
+const ACCOUNTS_KEY = 'wallet_accounts_v1';
+let accounts = [];         // [{id, username, email}]
+let addingAccount = false; // true while the login screen is open from the switcher
+
+function loadAccounts() {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (raw) { const a = JSON.parse(raw); if (Array.isArray(a)) return a.filter(x => x && x.id); }
+  } catch(e) {}
+  return [];
+}
+function persistAccounts() {
+  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)); } catch(e) {}
+}
+function upsertAccount(u) {
+  if (!u || !u.id) return;
+  const entry = { id: u.id, username: u.username, email: u.email || '' };
+  const idx = accounts.findIndex(a => String(a.id) === String(u.id));
+  if (idx >= 0) accounts[idx] = entry; else accounts.push(entry);
+  persistAccounts();
+}
+function dropAccount(id) {
+  accounts = accounts.filter(a => String(a.id) !== String(id));
+  persistAccounts();
+}
+function clearCacheFor(id) {
+  try { localStorage.removeItem('wallet_cache_' + id); } catch(e) {}
+}
+
 function saveTheme(t) { try{localStorage.setItem('wallet_theme',t);}catch(e){} }
 function loadTheme() { try{return localStorage.getItem('wallet_theme')||'light';}catch(e){return 'light';} }
 
@@ -296,6 +338,175 @@ function updateMetaThemeColor() {
   meta.content = fixed[theme] || document.documentElement.style.getPropertyValue('--blue').trim() || '#1a73e8';
 }
 
+// ── AVATAR TAP: single = profile, double = account switcher ──
+let _avatarTapTimer = null;
+function handleAvatarTap() {
+  if (_avatarTapTimer) {
+    clearTimeout(_avatarTapTimer);
+    _avatarTapTimer = null;
+    openAccountSwitcher();
+    return;
+  }
+  _avatarTapTimer = setTimeout(() => {
+    _avatarTapTimer = null;
+    openProfile();
+  }, 260);
+}
+
+function openAccountSwitcher() {
+  if (currentUser && !accounts.length) upsertAccount(currentUser);
+  renderAccountSwitcher();
+  document.getElementById('account-overlay').classList.add('open');
+}
+
+function renderAccountSwitcher() {
+  const el = document.getElementById('account-list');
+  if (!el) return;
+  if (!accounts.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">No accounts saved yet</div>';
+    return;
+  }
+  el.innerHTML = accounts.map(a => {
+    const isActive = currentUser && String(a.id) === String(currentUser.id);
+    const name = esc(a.username || 'User');
+    const mail = esc(a.email || '');
+    const idAttr = esc(String(a.id));
+    return `<div class="account-row ${isActive ? 'active' : ''}" onclick="switchAccount('${idAttr}')">
+      <div class="account-avatar">${name.charAt(0).toUpperCase()}</div>
+      <div class="account-info">
+        <div class="account-name">${name}${isActive ? '<span class="account-current">Current</span>' : ''}</div>
+        <div class="account-email">${mail || '&nbsp;'}</div>
+      </div>
+      ${isActive
+        ? `<svg class="account-check" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        : `<button class="account-remove" title="Remove account"
+             onclick="event.stopPropagation();removeAccountConfirm('${idAttr}','${name}')">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+           </button>`}
+    </div>`;
+  }).join('');
+}
+
+// Reset every piece of per-user view state so one account never shows
+// another's numbers, filters, or open sheets.
+function resetAppState() {
+  appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
+  balanceHidden   = true;
+  expFilterVal    = _curMonth;
+  incFilterVal    = _curMonth;
+  dashFilterType  = 'month';
+  dashFilterRange = { from: null, to: null };
+  showSettledLoans   = false;
+  currentPersonKey   = null;
+  currentEMI         = null;
+  currentLoanAction  = null;
+  currentEntryDetail = null;
+  reportData         = null;
+  Object.keys(_entryRegistry).forEach(k => delete _entryRegistry[k]);
+  // Close anything left open from the previous account
+  ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
+   'entry-detail-overlay','config-overlay','report-overlay','add-overlay',
+   'emi-add-overlay'].forEach(id => {
+    const o = document.getElementById(id); if (o) o.classList.remove('open');
+  });
+  // Reset dashboard chips back to "This Month"
+  document.querySelectorAll('.dash-chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.type === 'month'));
+  const rangeRow = document.getElementById('dash-range-row');
+  if (rangeRow) rangeRow.style.display = 'none';
+  const out = document.getElementById('report-output');
+  if (out) out.innerHTML = '<div class="report-placeholder">Select a period and generate your report</div>';
+  const expBtns = document.getElementById('report-export-btns');
+  if (expBtns) expBtns.style.display = 'none';
+  updateEyeIcon();
+  renderAll();
+}
+
+async function switchAccount(id) {
+  const a = accounts.find(x => String(x.id) === String(id));
+  if (!a) return;
+  closeOverlay('account-overlay');
+  if (currentUser && String(currentUser.id) === String(id)) return;
+  currentUser = { id: a.id, username: a.username, email: a.email };
+  saveSession(currentUser);
+  resetAppState();
+  initMainScreen();
+  switchPage('dashboard');
+  showScreen('main-screen');
+  showToast('Switched to ' + a.username);
+  await loadAllData();
+}
+
+function startAddAccount() {
+  addingAccount = true;
+  closeOverlay('account-overlay');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-err').textContent = '';
+  const cancel = document.getElementById('login-cancel');
+  if (cancel) cancel.style.display = currentUser ? 'flex' : 'none';
+  showScreen('login-screen');
+}
+
+function cancelAddAccount() {
+  addingAccount = false;
+  const cancel = document.getElementById('login-cancel');
+  if (cancel) cancel.style.display = 'none';
+  if (currentUser) showScreen('main-screen');
+}
+
+function removeAccountConfirm(id, name) {
+  showConfirm(
+    `Remove ${name} from this device?\n\nThe account's data stays safe — you'll just need the password to add it back.`,
+    () => {
+      clearCacheFor(id);
+      dropAccount(id);
+      if (currentUser && String(currentUser.id) === String(id)) {
+        if (accounts.length) { switchAccount(accounts[0].id); return; }
+        clearSession(); currentUser = null;
+        closeOverlay('account-overlay');
+        showScreen('login-screen');
+        return;
+      }
+      updateAccountBadge();
+      renderAccountSwitcher();
+    },
+    'Remove'
+  );
+}
+
+function logoutAllConfirm() {
+  showConfirm(
+    'Log out of all accounts on this device?',
+    () => {
+      accounts.forEach(a => clearCacheFor(a.id));
+      accounts = [];
+      persistAccounts();
+      clearSession();
+      currentUser = null;
+      appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
+      closeOverlay('account-overlay');
+      document.getElementById('login-user').value = '';
+      document.getElementById('login-pass').value = '';
+      document.getElementById('login-err').textContent = '';
+      const cancel = document.getElementById('login-cancel');
+      if (cancel) cancel.style.display = 'none';
+      showScreen('login-screen');
+    },
+    'Log out'
+  );
+}
+
+// Small dot on the avatar hinting that more than one account is available
+function updateAccountBadge() {
+  const av = document.getElementById('topbar-avatar');
+  if (av) av.classList.toggle('multi', accounts.length > 1);
+  const sub = document.getElementById('profile-account-sub');
+  if (sub) sub.textContent = accounts.length > 1
+    ? `${accounts.length} accounts on this device`
+    : 'Add another account';
+}
+
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {
   balanceHidden = true; // always start hidden on every open
@@ -303,13 +514,20 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(theme);
   setAccent(loadAccent());
   updateEyeIcon();
+  accounts = loadAccounts();
   const saved = loadSession();
-  if (saved) {
-    currentUser = saved;
+  // Restore the last active account; fall back to the first saved account if
+  // the session blob expired but the account list is still there.
+  const active = saved || (accounts.length ? accounts[0] : null);
+  if (active) {
+    currentUser = active;
+    upsertAccount(currentUser); // migrates users who logged in before multi-account existed
+    saveSession(currentUser);
     initMainScreen();
     showScreen('main-screen');
     loadAllData();
   }
+  updateAccountBadge();
 });
 
 // ── AUTH ──
@@ -324,10 +542,19 @@ async function doLogin() {
   try {
     const res = await api({action:'login',username,password});
     if (res.success) {
+      const already = accounts.some(a => String(a.id) === String(res.user.id));
       currentUser = res.user;
+      upsertAccount(currentUser);
       saveSession(currentUser);
+      addingAccount = false;
+      const cancel = document.getElementById('login-cancel');
+      if (cancel) cancel.style.display = 'none';
+      document.getElementById('login-pass').value = '';
+      resetAppState();
       initMainScreen();
+      switchPage('dashboard');
       showScreen('main-screen');
+      if (already) showToast('Switched to ' + currentUser.username);
       loadAllData();
     } else { err.textContent = res.error||'Invalid credentials'; }
   } catch(e) { err.textContent = 'Connection error'; }
@@ -342,14 +569,28 @@ function initMainScreen() {
   document.getElementById('profile-avatar-big').textContent = u.username[0].toUpperCase();
   document.getElementById('profile-name').textContent = u.username;
   document.getElementById('profile-email').textContent = u.email||'';
+  updateAccountBadge();
 }
 
+// Logs out of the CURRENT account only. If other accounts are signed in on
+// this device, we hop straight to the next one instead of dumping the user
+// back at the login screen.
 function doLogout() {
   closeOverlay('profile-overlay');
-  clearCache();
+  if (currentUser) {
+    clearCacheFor(currentUser.id);
+    dropAccount(currentUser.id);
+  }
+  if (accounts.length) {
+    switchAccount(accounts[0].id);
+    return;
+  }
   clearSession();
   currentUser = null;
-  appData = {expenses:[],income:[],loans:[],loanSummary:[],config:{expense:[],income:[],loan:[]}};
+  appData = {expenses:[],income:[],loans:[],loanSummary:[],emis:[],emiPayments:[],config:{expense:[],income:[],loan:[]}};
+  addingAccount = false;
+  const cancel = document.getElementById('login-cancel');
+  if (cancel) cancel.style.display = 'none';
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
   document.getElementById('login-err').textContent = '';
@@ -1429,9 +1670,11 @@ function isAutoEntry(r) {
 
 // ── CUSTOM CONFIRM DIALOG ──
 let _confirmCallback = null;
-function showConfirm(msg, onOk) {
+function showConfirm(msg, onOk, okLabel = 'Delete') {
   _confirmCallback = onOk;
   document.getElementById('confirm-msg').textContent = msg;
+  const okBtn = document.getElementById('confirm-ok-btn');
+  if (okBtn) okBtn.textContent = okLabel;
   document.getElementById('confirm-overlay').classList.add('open');
 }
 function confirmOK() {
