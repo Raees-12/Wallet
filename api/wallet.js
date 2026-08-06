@@ -71,18 +71,11 @@ async function getAllData({ userId }) {
     db.from('loan').select('*').eq('ID', userId),
     db.from('emi').select('*').eq('ID', userId),
     db.from('emi_payments').select('*').eq('ID', userId),
-    db.from('personalised_configuration').select('*').eq('ID', userId).eq('Configuration Type', 'categories').maybeSingle(),
+    db.from('personalised_configuration').select('*').eq('ID', userId),
   ]);
-  for (const r of [expenses, income, loans, emis, emiPayments]) if (r.error) throw r.error;
-  if (cfgRows.error) throw cfgRows.error;
+  for (const r of [expenses, income, loans, emis, emiPayments, cfgRows]) if (r.error) throw r.error;
 
-  const c = cfgRows.data || {};
-  const config = {
-    expenseCustom: c.C1 || '', expenseUnchecked: c.C2 || '',
-    incomeCustom: c.C3 || '',  incomeUnchecked: c.C4 || '',
-    loanCustom: c.C5 || '',    loanUnchecked: c.C6 || '',
-    emiCustom: c.C7 || '',     emiUnchecked: c.C8 || '',
-  };
+  const config = buildConfig(cfgRows.data || []);
 
   return {
     success: true,
@@ -94,6 +87,60 @@ async function getAllData({ userId }) {
     emiPayments: emiPayments.data || [],
     config,
   };
+}
+
+// Config is stored as one-or-more rows per "Configuration Type" label,
+// e.g. "Expense Type Custom", with up to 10 values spread across C1-C10.
+// A long list just spans multiple rows.
+const CONFIG_TYPE_LABELS = { expense: 'Expense', income: 'Income', loan: 'Loan', emi: 'EMI' };
+const C_COLS = ['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10'];
+
+function customTypeName(type)    { return `${CONFIG_TYPE_LABELS[type]} Type Custom`; }
+function uncheckedTypeName(type) { return `${CONFIG_TYPE_LABELS[type]} Type Unchecked`; }
+
+function collectValues(rows, typeName) {
+  return rows
+    .filter(r => r['Configuration Type'] === typeName)
+    .flatMap(r => C_COLS.map(c => r[c]))
+    .filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+}
+
+function buildConfig(cfgRows) {
+  const config = {};
+  for (const type of Object.keys(CONFIG_TYPE_LABELS)) {
+    config[type + 'Custom']    = collectValues(cfgRows, customTypeName(type)).join(',');
+    config[type + 'Unchecked'] = collectValues(cfgRows, uncheckedTypeName(type)).join(',');
+  }
+  return config;
+}
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Replaces all rows for (userId, typeName) with fresh rows built from `list`.
+// Deleting first (rather than accumulating forever like the old sheet did)
+// keeps the table clean and getAllData's aggregation correct.
+async function replaceConfigRows(userId, typeName, list) {
+  const { error: delErr } = await db
+    .from('personalised_configuration')
+    .delete()
+    .eq('ID', userId)
+    .eq('Configuration Type', typeName);
+  if (delErr) throw delErr;
+
+  const values = (list || []).map(s => s.trim()).filter(Boolean);
+  if (!values.length) return;
+
+  const rows = chunk(values, 10).map(group => {
+    const row = { ID: userId, 'Configuration Type': typeName };
+    C_COLS.forEach((c, i) => { row[c] = group[i] || null; });
+    return row;
+  });
+  const { error: insErr } = await db.from('personalised_configuration').insert(rows);
+  if (insErr) throw insErr;
 }
 
 function buildLoanSummary(loanRows) {
@@ -423,19 +470,19 @@ async function saveConfig(p) {
   } = p;
   if (!userId) return { success: false, error: 'userId required' };
 
-  const row = {
-    ID: userId,
-    'Configuration Type': 'categories',
-    C1: expenseCustom || '', C2: expenseUnchecked || '',
-    C3: incomeCustom || '',  C4: incomeUnchecked || '',
-    C5: loanCustom || '',    C6: loanUnchecked || '',
-    C7: emiCustom || '',     C8: emiUnchecked || '',
+  const lists = {
+    expense:  { custom: expenseCustom, unchecked: expenseUnchecked },
+    income:   { custom: incomeCustom,  unchecked: incomeUnchecked },
+    loan:     { custom: loanCustom,    unchecked: loanUnchecked },
+    emi:      { custom: emiCustom,     unchecked: emiUnchecked },
   };
 
-  // Requires the unique index on (ID, "Configuration Type") from supabase-migration.sql
-  const { error } = await db
-    .from('personalised_configuration')
-    .upsert(row, { onConflict: 'ID,Configuration Type' });
-  if (error) throw error;
+  for (const type of Object.keys(lists)) {
+    const customArr    = (lists[type].custom || '').split(',').filter(Boolean);
+    const uncheckedArr = (lists[type].unchecked || '').split(',').filter(Boolean);
+    await replaceConfigRows(userId, customTypeName(type), customArr);
+    await replaceConfigRows(userId, uncheckedTypeName(type), uncheckedArr);
+  }
+
   return { success: true };
 }
