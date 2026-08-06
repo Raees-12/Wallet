@@ -21,8 +21,7 @@ let dashFilterRange = { from: null, to: null };
 // Default filter = current month (YYYY-MM format)
 const _now = new Date();
 const _curMonth = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
-let expFilterVal = _curMonth;
-let incFilterVal = _curMonth;
+
 let reportData = null;
 
 // ── CONFIG STATE (checked/unchecked + custom) ──
@@ -473,8 +472,10 @@ function resetAppState() {
   appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
   balanceHidden   = prefs.hideBalance;
   summaryType     = 'expense';
-  expFilterVal    = _curMonth;
-  incFilterVal    = _curMonth;
+  summaryPeriod   = 'monthly';
+  summaryAnchor   = { y: new Date().getFullYear(), m: new Date().getMonth() };
+  summaryCats     = null;
+  summaryCustom   = { from: null, to: null };
   dashFilterType  = 'month';
   dashFilterRange = { from: null, to: null };
   showSettledLoans   = false;
@@ -486,8 +487,8 @@ function resetAppState() {
   Object.keys(_entryRegistry).forEach(k => delete _entryRegistry[k]);
   // Close anything left open from the previous account
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
-   'entry-detail-overlay','add-overlay','emi-add-overlay',
-   'cat-entries-overlay'].forEach(id => {
+   'entry-detail-overlay','add-overlay','emi-add-overlay','cat-entries-overlay',
+   'datepick-overlay','type-overlay','period-overlay','catfilter-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   // Reset dashboard chips back to "This Month"
@@ -2705,38 +2706,6 @@ function buildDashMonthChips() {
   // Dashboard uses its own dash-chip elements already in HTML — nothing extra needed
 }
 
-function buildFilterChips(containerId, rows, dateField, prefix, activeVal, onChange) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-
-  // Collect unique YYYY-MM months from data
-  const months = new Set();
-  rows.forEach(r => {
-    const ts = parseSheetDate(r[dateField]);
-    if (!ts) return;
-    const d = new Date(ts);
-    months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-  });
-
-  // Always include current month
-  const now = new Date();
-  const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  months.add(curMonth);
-
-  // Sort descending (newest first), take last 12
-  const sorted = Array.from(months).sort().reverse().slice(0, 12);
-
-  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  el.innerHTML = sorted.map(m => {
-    const [y, mo] = m.split('-');
-    const label = `${monthNames[+mo-1]} ${y}`;
-    const isActive = m === activeVal ? 'active' : '';
-    return `<div class="filter-chip ${isActive}" onclick="(function(v,fn){fn(v)})('${m}', window._filterCb_${prefix})">${label}</div>`;
-  }).join('');
-
-  // Store callback on window to allow inline onclick to call it
-  window[`_filterCb_${prefix}`] = onChange;
-}
 
 // ── RENDER ALL ──
 function renderAll() {
@@ -2819,28 +2788,107 @@ function entryItemHTML(r) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// SUMMARY — donut + category breakdown
+// SUMMARY — donut, month picker, type / period / category filters
 // ══════════════════════════════════════════════════════════════
-let summaryType = 'expense';
+let summaryType   = 'expense';
+let summaryPeriod = 'monthly';
+let summaryAnchor = { y: new Date().getFullYear(), m: new Date().getMonth() };
+let summaryCats   = null;                    // null = all categories
+let summaryCustom = { from: null, to: null };
+let _pendingCats  = null;                    // working copy while the sheet is open
 
-function setSummaryType(t) {
-  summaryType = t;
-  document.querySelectorAll('#page-summary .segment').forEach((el, i) =>
-    el.classList.toggle('active', (i === 0) === (t === 'expense')));
-  renderSummary();
+const PERIOD_OPTS = [
+  { id:'monthly',   label:'Monthly',        note:'Default' },
+  { id:'weekly',    label:'Weekly' },
+  { id:'quarterly', label:'Quarterly' },
+  { id:'ytd',       label:'Year to date' },
+  { id:'last6',     label:'Last 6 months' },
+  { id:'last12',    label:'Last 12 months' },
+  { id:'all',       label:'All time' },
+  { id:'custom',    label:'Custom' }
+];
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ── Date range for whatever the current period + anchor month is ──
+function getSummaryRange() {
+  const { y, m } = summaryAnchor;
+  const now = new Date();
+  let from, to;
+  switch (summaryPeriod) {
+    case 'weekly': {
+      const day = (now.getDay() + 6) % 7;           // Monday-first
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+      to   = new Date(from); to.setDate(from.getDate() + 6); to.setHours(23,59,59,999);
+      break;
+    }
+    case 'quarterly': {
+      const q = Math.floor(m / 3);
+      from = new Date(y, q * 3, 1);
+      to   = new Date(y, q * 3 + 3, 0, 23,59,59,999);
+      break;
+    }
+    case 'ytd':
+      from = new Date(y, 0, 1);
+      to   = (y === now.getFullYear()) ? now : new Date(y, 11, 31, 23,59,59,999);
+      break;
+    case 'last6':
+      from = new Date(y, m - 5, 1);
+      to   = new Date(y, m + 1, 0, 23,59,59,999);
+      break;
+    case 'last12':
+      from = new Date(y, m - 11, 1);
+      to   = new Date(y, m + 1, 0, 23,59,59,999);
+      break;
+    case 'all':
+      return { from: 0, to: Date.now() + 31536000000 };
+    case 'custom': {
+      if (!summaryCustom.from || !summaryCustom.to) { summaryPeriod = 'monthly'; return getSummaryRange(); }
+      const [fy,fm,fd] = summaryCustom.from.split('-');
+      const [ty,tm,td] = summaryCustom.to.split('-');
+      from = new Date(+fy, +fm-1, +fd);
+      to   = new Date(+ty, +tm-1, +td, 23,59,59,999);
+      break;
+    }
+    default:
+      from = new Date(y, m, 1);
+      to   = new Date(y, m + 1, 0, 23,59,59,999);
+  }
+  return { from: from.getTime(), to: to.getTime() };
 }
 
+function summaryPeriodLabel() {
+  const { y, m } = summaryAnchor;
+  const now = new Date();
+  switch (summaryPeriod) {
+    case 'weekly':    return 'This week';
+    case 'quarterly': return `Q${Math.floor(m/3)+1} ${y}`;
+    case 'ytd':       return `${y} to date`;
+    case 'last6':     return 'Last 6 months';
+    case 'last12':    return 'Last 12 months';
+    case 'all':       return 'All time';
+    case 'custom':    return 'Custom range';
+    default:
+      return (y === now.getFullYear() && m === now.getMonth())
+        ? 'This month' : `${MONTH_NAMES[m]} ${y}`;
+  }
+}
+
+// ── Data ──
 function summaryRows() {
   const isExp  = summaryType === 'expense';
   const src    = isExp ? appData.expenses : appData.income;
   const amtKey = isExp ? 'Expense Amount' : 'Income Amount';
-  const filter = isExp ? expFilterVal : incFilterVal;
-  const range  = getDateRange(filter);
+  const { from, to } = getSummaryRange();
   return src
     .map((r, i) => ({ ...r, _type: isExp ? 'expense' : 'income', _amt: Number(r[amtKey] || 0),
       _date: r['Date'], _cat: r['Category'] || 'Uncategorised', _desc: r['Description'],
       _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) }))
-    .filter(r => { const ts = parseSheetDate(r._date); return ts >= range.from && ts <= range.to; })
+    .filter(r => {
+      const ts = parseSheetDate(r._date);
+      if (ts < from || ts > to) return false;
+      if (summaryCats && !summaryCats.has(r._cat)) return false;
+      return true;
+    })
     .sort((a, b) => b._sortKey - a._sortKey);
 }
 
@@ -2849,7 +2897,6 @@ function renderSummary() {
   const rows  = summaryRows();
   const total = rows.reduce((s, r) => s + r._amt, 0);
 
-  // Group by category
   const map = new Map();
   rows.forEach(r => {
     const g = map.get(r._cat) || { cat: r._cat, amt: 0, count: 0 };
@@ -2860,25 +2907,28 @@ function renderSummary() {
 
   document.getElementById('summary-total').textContent  = fmt(total);
   document.getElementById('summary-count').textContent  = rows.length + (rows.length === 1 ? ' entry' : ' entries');
-  document.getElementById('summary-period').textContent = periodLabelFor(isExp ? expFilterVal : incFilterVal);
+  document.getElementById('summary-period').textContent = summaryPeriodLabel();
+
+  // Chip labels
+  document.getElementById('chip-type').textContent   = isExp ? 'Expenses' : 'Income';
+  document.getElementById('chip-period').textContent = PERIOD_OPTS.find(p => p.id === summaryPeriod).label;
+  document.getElementById('chip-cats').textContent   =
+    !summaryCats ? 'All categories'
+    : summaryCats.size === 1 ? [...summaryCats][0]
+    : `${summaryCats.size} categories`;
 
   drawDonut(groups, total);
-
-  buildFilterChips('summary-filter-bar', isExp ? appData.expenses : appData.income, 'Date',
-    isExp ? 'exp' : 'inc', isExp ? expFilterVal : incFilterVal, val => {
-      if (isExp) expFilterVal = val; else incFilterVal = val;
-      renderSummary();
-    });
 
   const el = document.getElementById('summary-breakdown');
   if (!groups.length) {
     el.innerHTML = emptyState(isExp ? 'No expenses' : 'No income', 'Nothing recorded for this period');
     return;
   }
-  el.innerHTML = groups.map(g => {
+  el.innerHTML = groups.map((g, i) => {
     const pctRaw = total > 0 ? (g.amt / total * 100) : 0;
     const pct = pctRaw >= 10 ? pctRaw.toFixed(1) : pctRaw.toFixed(2);
-    return `<div class="sum-row" onclick="openCatEntries('${esc(g.cat).replace(/'/g,"\\'")}')">
+    return `<div class="sum-row" style="animation-delay:${Math.min(i,8) * 35}ms"
+        onclick="openCatEntries('${esc(g.cat).replace(/'/g,"\\'")}')">
       <div class="sum-icon" style="border-color:${catColor(g.cat)};color:${catColor(g.cat)}">
         ${esc(g.cat.charAt(0).toUpperCase())}
       </div>
@@ -2889,32 +2939,20 @@ function renderSummary() {
   }).join('');
 }
 
-function periodLabelFor(val) {
-  const map = { today: 'Today', week: 'This week', month: 'This month', range: 'Custom range' };
-  if (map[val]) return map[val];
-  const m = /^(\d{4})-(\d{2})$/.exec(val || '');
-  if (m) {
-    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${names[+m[2] - 1]} ${m[1]}`;
-  }
-  return 'This month';
-}
-
-// Segmented ring — each category is an arc with a small gap between them
+// Segmented ring — one rounded arc per category, with a gap between each
 function drawDonut(groups, total) {
   const svg = document.getElementById('summary-donut');
   if (!svg) return;
   const R = 78, CX = 100, CY = 100, C = 2 * Math.PI * R;
-  const GAP = groups.length > 1 ? 9 : 0;   // px of circumference
+  const GAP = groups.length > 1 ? 9 : 0;
 
   if (!total || !groups.length) {
     svg.innerHTML = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
       stroke="var(--border)" stroke-width="20"/>`;
     return;
   }
-
   let offset = 0;
-  const arcs = groups.map(g => {
+  svg.innerHTML = groups.map(g => {
     const len = Math.max(0, (g.amt / total) * C - GAP);
     const el = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
       stroke="${catColor(g.cat)}" stroke-width="20" stroke-linecap="round"
@@ -2923,7 +2961,162 @@ function drawDonut(groups, total) {
     offset += (g.amt / total) * C;
     return el;
   }).join('');
-  svg.innerHTML = arcs;
+}
+
+// ── DATE PICKER ──
+function openDatePicker() {
+  renderDatePicker();
+  document.getElementById('datepick-overlay').classList.add('open');
+}
+
+function dataYears() {
+  const years = new Set();
+  [...appData.expenses, ...appData.income].forEach(r => {
+    const ts = parseSheetDate(r['Date']);
+    if (ts) years.add(new Date(ts).getFullYear());
+  });
+  const now = new Date().getFullYear();
+  for (let i = 0; i < 5; i++) years.add(now - i);   // always offer the last 5
+  years.add(summaryAnchor.y);
+  return [...years].sort((a, b) => b - a);
+}
+
+function renderDatePicker() {
+  const now = new Date();
+  document.getElementById('dp-years').innerHTML = dataYears().map(y =>
+    `<div class="year-pill ${y === summaryAnchor.y ? 'active' : ''}" onclick="pickYear(${y})">${y}</div>`
+  ).join('');
+
+  document.getElementById('dp-months').innerHTML = MONTH_NAMES.map((name, i) => {
+    const future = summaryAnchor.y > now.getFullYear() ||
+                   (summaryAnchor.y === now.getFullYear() && i > now.getMonth());
+    return `<div class="month-cell ${i === summaryAnchor.m ? 'active' : ''} ${future ? 'disabled' : ''}"
+      ${future ? '' : `onclick="pickMonth(${i})"`}>${name}</div>`;
+  }).join('');
+}
+
+function pickYear(y) {
+  const now = new Date();
+  summaryAnchor.y = y;
+  // Don't leave the anchor sitting on a future month after switching years
+  if (y === now.getFullYear() && summaryAnchor.m > now.getMonth()) summaryAnchor.m = now.getMonth();
+  renderDatePicker();
+}
+
+function pickMonth(m) {
+  summaryAnchor.m = m;
+  // Picking a month only makes sense for month-anchored periods
+  if (['weekly','all','custom'].includes(summaryPeriod)) summaryPeriod = 'monthly';
+  renderDatePicker();
+  renderSummary();
+  setTimeout(() => closeOverlay('datepick-overlay'), 160);
+}
+
+// ── TYPE SHEET ──
+function openTypeSheet() {
+  document.getElementById('type-opts').innerHTML = [
+    { id:'expense', label:'Expenses', note:'Default' },
+    { id:'income',  label:'Income' }
+  ].map(o => optRow(o, summaryType === o.id, `setSummaryType('${o.id}')`)).join('');
+  document.getElementById('type-overlay').classList.add('open');
+}
+
+function optRow(o, active, onclick) {
+  return `<div class="opt-row ${active ? 'active' : ''}" onclick="${onclick}">
+    <span>${o.label}</span>
+    ${o.note ? `<span class="opt-note">${o.note}</span>` : ''}
+  </div>`;
+}
+
+function setSummaryType(t) {
+  summaryType = t;
+  summaryCats = null;              // categories differ between types
+  renderSummary();
+  closeOverlay('type-overlay');
+}
+
+// ── PERIOD SHEET ──
+function openPeriodSheet() {
+  document.getElementById('period-opts').innerHTML = PERIOD_OPTS
+    .map(o => optRow(o, summaryPeriod === o.id, `setSummaryPeriod('${o.id}')`)).join('');
+  const cust = document.getElementById('period-custom');
+  cust.style.display = summaryPeriod === 'custom' ? 'block' : 'none';
+  if (summaryCustom.from) document.getElementById('sum-from').value = summaryCustom.from;
+  if (summaryCustom.to)   document.getElementById('sum-to').value   = summaryCustom.to;
+  document.getElementById('period-overlay').classList.add('open');
+}
+
+function setSummaryPeriod(p) {
+  if (p === 'custom') {
+    summaryPeriod = 'custom';
+    document.getElementById('period-custom').style.display = 'block';
+    document.getElementById('period-opts').innerHTML = PERIOD_OPTS
+      .map(o => optRow(o, o.id === 'custom', `setSummaryPeriod('${o.id}')`)).join('');
+    return;
+  }
+  summaryPeriod = p;
+  renderSummary();
+  closeOverlay('period-overlay');
+}
+
+function applyCustomPeriod() {
+  const f = document.getElementById('sum-from').value;
+  const t = document.getElementById('sum-to').value;
+  if (!f || !t) { showToast('Pick both dates'); return; }
+  if (f > t)    { showToast('From date is after the To date'); return; }
+  summaryCustom = { from: f, to: t };
+  summaryPeriod = 'custom';
+  renderSummary();
+  closeOverlay('period-overlay');
+}
+
+// ── CATEGORY FILTER SHEET ──
+function allSummaryCats() {
+  const set = new Set(getActiveCategories(summaryType === 'expense' ? 'expense' : 'income'));
+  const src = summaryType === 'expense' ? appData.expenses : appData.income;
+  src.forEach(r => set.add(r['Category'] || 'Uncategorised'));   // include retired categories still in use
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function openCatFilter() {
+  _pendingCats = summaryCats ? new Set(summaryCats) : null;
+  renderCatPicker();
+  document.getElementById('catfilter-overlay').classList.add('open');
+}
+
+function renderCatPicker() {
+  const cats = allSummaryCats();
+  const allOn = !_pendingCats || _pendingCats.size === 0;
+  let html = `<div class="catpick ${allOn ? 'active' : ''}" onclick="toggleCatPick(null)">
+      <div class="catpick-tile all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.6"/><circle cx="17" cy="7" r="2.6"/><circle cx="7" cy="17" r="2.6"/><circle cx="17" cy="17" r="2.6"/></svg>
+      </div>
+      <div class="catpick-label">All</div>
+    </div>`;
+  html += cats.map(c => {
+    const on = _pendingCats && _pendingCats.has(c);
+    return `<div class="catpick ${on ? 'active' : ''}" onclick="toggleCatPick('${esc(c).replace(/'/g,"\\'")}')">
+      <div class="catpick-tile" style="border-color:${catColor(c)};color:${catColor(c)}">
+        ${esc(c.charAt(0).toUpperCase())}
+      </div>
+      <div class="catpick-label">${esc(c)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('catpick-grid').innerHTML = html;
+}
+
+function toggleCatPick(cat) {
+  if (cat === null) { _pendingCats = null; renderCatPicker(); return; }
+  if (!_pendingCats) _pendingCats = new Set();
+  if (_pendingCats.has(cat)) _pendingCats.delete(cat); else _pendingCats.add(cat);
+  if (_pendingCats.size === 0) _pendingCats = null;
+  renderCatPicker();
+}
+
+function applyCatFilter() {
+  summaryCats = (_pendingCats && _pendingCats.size) ? new Set(_pendingCats) : null;
+  renderSummary();
+  closeOverlay('catfilter-overlay');
 }
 
 // Tapping a category opens its entries — this is where individual
