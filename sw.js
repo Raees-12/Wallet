@@ -10,7 +10,7 @@
 // an actively-developed app. Icons/images still use cache-first since they
 // almost never change.
 
-const CACHE_NAME = 'wallet-v8'; // bump this on every sw.js change to force clients to update
+const CACHE_NAME = 'wallet-v9'; // bump this on every sw.js change to force clients to update
 const BASE = '/';
 
 const SHELL_FILES = [
@@ -22,6 +22,10 @@ const SHELL_FILES = [
   BASE + 'Assets/l_logo.png',
   BASE + 'Assets/d_logo.png',
   BASE + 'Assets/fav.png',
+  BASE + 'Assets/shortcuts/expense.png',
+  BASE + 'Assets/shortcuts/income.png',
+  BASE + 'Assets/shortcuts/loan.png',
+  BASE + 'Assets/shortcuts/report.png',
 ];
 
 const CACHE_FIRST_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.ico', '.webp'];
