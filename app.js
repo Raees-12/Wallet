@@ -338,19 +338,83 @@ function updateMetaThemeColor() {
   meta.content = fixed[theme] || document.documentElement.style.getPropertyValue('--blue').trim() || '#1a73e8';
 }
 
-// ── AVATAR TAP: single = profile, double = account switcher ──
-let _avatarTapTimer = null;
+// ── AVATAR GESTURES ──
+// Tap        → Profile
+// Double-tap → jump straight to the next account (no picker)
+// Hold       → open the account picker
+let _tapTimer       = null;
+let _longPressTimer = null;
+let _longPressFired = false;
+let _pointerMoved   = false;
+let _pointerStart   = null;
+const LONG_PRESS_MS = 500;
+const DOUBLE_TAP_MS = 280;
+
+function initAvatarGestures() {
+  const av = document.getElementById('topbar-avatar');
+  if (!av) return;
+
+  // Stop the OS text-selection / callout menu that a double-tap normally triggers
+  av.addEventListener('contextmenu', e => e.preventDefault());
+  av.addEventListener('selectstart', e => e.preventDefault());
+  av.addEventListener('dblclick',    e => e.preventDefault());
+
+  av.addEventListener('pointerdown', e => {
+    _longPressFired = false;
+    _pointerMoved   = false;
+    _pointerStart   = { x: e.clientX, y: e.clientY };
+    clearTimeout(_longPressTimer);
+    _longPressTimer = setTimeout(() => {
+      _longPressFired = true;
+      clearTimeout(_tapTimer); _tapTimer = null;
+      try { if (navigator.vibrate) navigator.vibrate(15); } catch(err) {}
+      openAccountSwitcher();
+    }, LONG_PRESS_MS);
+  });
+
+  // A drag/scroll shouldn't count as a press
+  av.addEventListener('pointermove', e => {
+    if (!_pointerStart) return;
+    if (Math.abs(e.clientX - _pointerStart.x) > 10 || Math.abs(e.clientY - _pointerStart.y) > 10) {
+      _pointerMoved = true;
+      clearTimeout(_longPressTimer);
+    }
+  });
+
+  ['pointerup','pointercancel','pointerleave'].forEach(ev =>
+    av.addEventListener(ev, () => clearTimeout(_longPressTimer)));
+
+  av.addEventListener('click', e => {
+    e.preventDefault();
+    if (_longPressFired || _pointerMoved) { _longPressFired = false; return; }
+    handleAvatarTap();
+  });
+}
+
 function handleAvatarTap() {
-  if (_avatarTapTimer) {
-    clearTimeout(_avatarTapTimer);
-    _avatarTapTimer = null;
+  if (_tapTimer) {
+    // Second tap inside the window — this is a double-tap
+    clearTimeout(_tapTimer);
+    _tapTimer = null;
+    switchToNextAccount();
+    return;
+  }
+  _tapTimer = setTimeout(() => {
+    _tapTimer = null;
+    openProfile();
+  }, DOUBLE_TAP_MS);
+}
+
+// Cycles through the saved accounts in order, wrapping around at the end.
+async function switchToNextAccount() {
+  if (accounts.length < 2) {
+    showToast('Add another account to switch between them');
     openAccountSwitcher();
     return;
   }
-  _avatarTapTimer = setTimeout(() => {
-    _avatarTapTimer = null;
-    openProfile();
-  }, 260);
+  const i = accounts.findIndex(a => currentUser && String(a.id) === String(currentUser.id));
+  const next = accounts[(i + 1) % accounts.length];
+  await switchAccount(next.id);
 }
 
 function openAccountSwitcher() {
@@ -514,6 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(theme);
   setAccent(loadAccent());
   updateEyeIcon();
+  initAvatarGestures();
   accounts = loadAccounts();
   const saved = loadSession();
   // Restore the last active account; fall back to the first saved account if
