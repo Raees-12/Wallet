@@ -472,6 +472,7 @@ function renderAccountRows(containerId) {
 function resetAppState() {
   appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
   balanceHidden   = prefs.hideBalance;
+  summaryType     = 'expense';
   expFilterVal    = _curMonth;
   incFilterVal    = _curMonth;
   dashFilterType  = 'month';
@@ -485,7 +486,8 @@ function resetAppState() {
   Object.keys(_entryRegistry).forEach(k => delete _entryRegistry[k]);
   // Close anything left open from the previous account
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
-   'entry-detail-overlay','add-overlay','emi-add-overlay'].forEach(id => {
+   'entry-detail-overlay','add-overlay','emi-add-overlay',
+   'cat-entries-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   // Reset dashboard chips back to "This Month"
@@ -1967,8 +1969,8 @@ function closeOverlay(id, event) {
 
 function openAddModal() {
   // Open the tab matching the current page
-  const tabMap = { expenses: 'expense', income: 'income', loans: 'loan' };
-  const tab = tabMap[currentPage] || 'expense';
+  const tabMap = { loans: 'loan' };
+  const tab = tabMap[currentPage] || (currentPage === 'summary' ? summaryType : 'expense');
   switchAddTab(tab);
   document.getElementById('exp-date').value  = todayISO();
   document.getElementById('inc-date').value  = todayISO();
@@ -2311,8 +2313,8 @@ function handleLaunchAction() {
   try { history.replaceState({}, '', location.pathname); } catch(e) {}
   setTimeout(() => {
     switch (action) {
-      case 'add-expense': switchPage('expenses'); openAddModal(); switchAddTab('expense'); break;
-      case 'add-income':  switchPage('income');   openAddModal(); switchAddTab('income');  break;
+      case 'add-expense': switchPage('summary'); setSummaryType('expense'); openAddModal(); switchAddTab('expense'); break;
+      case 'add-income':  switchPage('summary'); setSummaryType('income');  openAddModal(); switchAddTab('income');  break;
       case 'loans':       switchPage('loans');   break;
       case 'emis':        switchPage('emis');    break;
       case 'reports':     openSettings(); openSubPage('reports'); break;
@@ -2695,16 +2697,9 @@ function applyDashRange() {
 }
 
 // ── MONTH FILTER CHIPS ──
-function buildMonthChips() {
-  buildFilterChips('exp-filter-bar', appData.expenses, 'Date', 'exp', expFilterVal, val => {
-    expFilterVal = val;
-    renderExpenses();
-  });
-  buildFilterChips('inc-filter-bar', appData.income, 'Date', 'inc', incFilterVal, val => {
-    incFilterVal = val;
-    renderIncome();
-  });
-}
+// The Summary page rebuilds its own chips on every render, so this just
+// refreshes whichever type is currently showing.
+function buildMonthChips() { renderSummary(); }
 
 function buildDashMonthChips() {
   // Dashboard uses its own dash-chip elements already in HTML — nothing extra needed
@@ -2746,8 +2741,8 @@ function buildFilterChips(containerId, rows, dateField, prefix, activeVal, onCha
 // ── RENDER ALL ──
 function renderAll() {
   renderDashboard();
-  renderExpenses();
-  renderIncome();
+  renderSummary();
+  renderAnalytics();
   renderLoans();
   renderEMIs();
   const plOverlay = document.getElementById('person-loans-overlay');
@@ -2823,48 +2818,246 @@ function entryItemHTML(r) {
   </div>`;
 }
 
-// ── RENDER EXPENSES ──
-function renderExpenses() {
-  const range = getDateRange(expFilterVal);
-  const rows = appData.expenses
-    .map((r, i) => ({ ...r, _type: 'expense', _amt: Number(r['Expense Amount'] || 0), _date: r['Date'], _cat: r['Category'], _desc: r['Description'], _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) }))
-    .filter(r => { const ts = parseSheetDate(r._date); return ts >= range.from && ts <= range.to; })
-    .sort((a, b) => b._sortKey - a._sortKey);
+// ══════════════════════════════════════════════════════════════
+// SUMMARY — donut + category breakdown
+// ══════════════════════════════════════════════════════════════
+let summaryType = 'expense';
 
-  const total = rows.reduce((s, r) => s + r._amt, 0);
-  document.getElementById('exp-count').textContent = rows.length + ' entries';
-  document.getElementById('exp-total').textContent  = fmt(total);
-
-  // Rebuild month chips
-  buildFilterChips('exp-filter-bar', appData.expenses, 'Date', 'exp', expFilterVal, val => {
-    expFilterVal = val; renderExpenses();
-  });
-
-  const el = document.getElementById('expenses-list');
-  if (!rows.length) { el.innerHTML = emptyState('No expenses', 'No expenses found for this period'); return; }
-  el.innerHTML = rows.map(r => entryItemHTML(r)).join('');
+function setSummaryType(t) {
+  summaryType = t;
+  document.querySelectorAll('#page-summary .segment').forEach((el, i) =>
+    el.classList.toggle('active', (i === 0) === (t === 'expense')));
+  renderSummary();
 }
 
-// ── RENDER INCOME ──
-function renderIncome() {
-  const range = getDateRange(incFilterVal);
-  const rows = appData.income
-    .map((r, i) => ({ ...r, _type: 'income', _amt: Number(r['Income Amount'] || 0), _date: r['Date'], _cat: r['Category'], _desc: r['Description'], _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) }))
+function summaryRows() {
+  const isExp  = summaryType === 'expense';
+  const src    = isExp ? appData.expenses : appData.income;
+  const amtKey = isExp ? 'Expense Amount' : 'Income Amount';
+  const filter = isExp ? expFilterVal : incFilterVal;
+  const range  = getDateRange(filter);
+  return src
+    .map((r, i) => ({ ...r, _type: isExp ? 'expense' : 'income', _amt: Number(r[amtKey] || 0),
+      _date: r['Date'], _cat: r['Category'] || 'Uncategorised', _desc: r['Description'],
+      _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) }))
     .filter(r => { const ts = parseSheetDate(r._date); return ts >= range.from && ts <= range.to; })
     .sort((a, b) => b._sortKey - a._sortKey);
+}
 
+function renderSummary() {
+  const isExp = summaryType === 'expense';
+  const rows  = summaryRows();
   const total = rows.reduce((s, r) => s + r._amt, 0);
-  document.getElementById('inc-count').textContent = rows.length + ' entries';
-  document.getElementById('inc-total').textContent  = fmt(total);
 
-  // Rebuild month chips
-  buildFilterChips('inc-filter-bar', appData.income, 'Date', 'inc', incFilterVal, val => {
-    incFilterVal = val; renderIncome();
+  // Group by category
+  const map = new Map();
+  rows.forEach(r => {
+    const g = map.get(r._cat) || { cat: r._cat, amt: 0, count: 0 };
+    g.amt += r._amt; g.count++;
+    map.set(r._cat, g);
   });
+  const groups = [...map.values()].sort((a, b) => b.amt - a.amt);
 
-  const el = document.getElementById('income-list');
-  if (!rows.length) { el.innerHTML = emptyState('No income', 'No income found for this period'); return; }
-  el.innerHTML = rows.map(r => entryItemHTML(r)).join('');
+  document.getElementById('summary-total').textContent  = fmt(total);
+  document.getElementById('summary-count').textContent  = rows.length + (rows.length === 1 ? ' entry' : ' entries');
+  document.getElementById('summary-period').textContent = periodLabelFor(isExp ? expFilterVal : incFilterVal);
+
+  drawDonut(groups, total);
+
+  buildFilterChips('summary-filter-bar', isExp ? appData.expenses : appData.income, 'Date',
+    isExp ? 'exp' : 'inc', isExp ? expFilterVal : incFilterVal, val => {
+      if (isExp) expFilterVal = val; else incFilterVal = val;
+      renderSummary();
+    });
+
+  const el = document.getElementById('summary-breakdown');
+  if (!groups.length) {
+    el.innerHTML = emptyState(isExp ? 'No expenses' : 'No income', 'Nothing recorded for this period');
+    return;
+  }
+  el.innerHTML = groups.map(g => {
+    const pctRaw = total > 0 ? (g.amt / total * 100) : 0;
+    const pct = pctRaw >= 10 ? pctRaw.toFixed(1) : pctRaw.toFixed(2);
+    return `<div class="sum-row" onclick="openCatEntries('${esc(g.cat).replace(/'/g,"\\'")}')">
+      <div class="sum-icon" style="border-color:${catColor(g.cat)};color:${catColor(g.cat)}">
+        ${esc(g.cat.charAt(0).toUpperCase())}
+      </div>
+      <div class="sum-name">${esc(g.cat)}<span class="sum-count">${g.count}</span></div>
+      <div class="sum-amt">${fmt(g.amt)}</div>
+      <div class="sum-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function periodLabelFor(val) {
+  const map = { today: 'Today', week: 'This week', month: 'This month', range: 'Custom range' };
+  if (map[val]) return map[val];
+  const m = /^(\d{4})-(\d{2})$/.exec(val || '');
+  if (m) {
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${names[+m[2] - 1]} ${m[1]}`;
+  }
+  return 'This month';
+}
+
+// Segmented ring — each category is an arc with a small gap between them
+function drawDonut(groups, total) {
+  const svg = document.getElementById('summary-donut');
+  if (!svg) return;
+  const R = 78, CX = 100, CY = 100, C = 2 * Math.PI * R;
+  const GAP = groups.length > 1 ? 9 : 0;   // px of circumference
+
+  if (!total || !groups.length) {
+    svg.innerHTML = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
+      stroke="var(--border)" stroke-width="20"/>`;
+    return;
+  }
+
+  let offset = 0;
+  const arcs = groups.map(g => {
+    const len = Math.max(0, (g.amt / total) * C - GAP);
+    const el = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
+      stroke="${catColor(g.cat)}" stroke-width="20" stroke-linecap="round"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}"
+      transform="rotate(-90 ${CX} ${CY})"><title>${esc(g.cat)}</title></circle>`;
+    offset += (g.amt / total) * C;
+    return el;
+  }).join('');
+  svg.innerHTML = arcs;
+}
+
+// Tapping a category opens its entries — this is where individual
+// view / edit / delete still lives now that the flat lists are gone.
+function openCatEntries(cat) {
+  const rows = summaryRows().filter(r => r._cat === cat);
+  const total = rows.reduce((s, r) => s + r._amt, 0);
+  document.getElementById('cat-entries-title').textContent = cat;
+  const totalEl = document.getElementById('cat-entries-total');
+  totalEl.textContent = fmt(total);
+  totalEl.className = 'cat-entries-total ' + (summaryType === 'expense' ? 'red' : 'green');
+  const el = document.getElementById('cat-entries-list');
+  el.innerHTML = rows.length
+    ? rows.map(r => entryItemHTML(r)).join('')
+    : emptyState('Nothing here', 'No entries in this category');
+  document.getElementById('cat-entries-overlay').classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS — 6-month bars, net, calendar heatmap
+// ══════════════════════════════════════════════════════════════
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function monthBuckets(n) {
+  const now = new Date();
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`,
+      label: MONTH_ABBR[d.getMonth()],
+      from: d.getTime(),
+      to: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime(),
+      income: 0, expense: 0
+    });
+  }
+  const add = (rows, key, field) => rows.forEach(r => {
+    const ts = parseSheetDate(r['Date']);
+    const b = out.find(x => ts >= x.from && ts <= x.to);
+    if (b) b[key] += Number(r[field] || 0);
+  });
+  add(appData.income,   'income',  'Income Amount');
+  add(appData.expenses, 'expense', 'Expense Amount');
+  return out;
+}
+
+function renderAnalytics() {
+  const buckets = monthBuckets(6);
+  const cur = buckets[buckets.length - 1];
+  const max = Math.max(1, ...buckets.map(b => Math.max(b.income, b.expense)));
+
+  document.getElementById('ana-inc-total').textContent = fmt(cur.income);
+  document.getElementById('ana-exp-total').textContent = fmt(cur.expense);
+
+  // Grouped bars — income and expense side by side per month
+  document.getElementById('ana-bars').innerHTML = buckets.map(b => {
+    const ih = Math.max(2, Math.round(b.income  / max * 100));
+    const eh = Math.max(2, Math.round(b.expense / max * 100));
+    const active = b.key === cur.key ? ' active' : '';
+    return `<div class="ana-col${active}">
+      <div class="ana-col-bars">
+        <div class="ana-bar green" style="height:${ih}%"><span class="ana-bar-tip">${fmt(b.income)}</span></div>
+        <div class="ana-bar blue"  style="height:${eh}%"><span class="ana-bar-tip">${fmt(b.expense)}</span></div>
+      </div>
+      <div class="ana-col-label">${b.label}</div>
+    </div>`;
+  }).join('');
+
+  // Net per month — bars go up for surplus, down for deficit
+  const net = cur.income - cur.expense;
+  const netEl = document.getElementById('ana-net');
+  netEl.textContent = (net < 0 ? '-' : '') + fmt(Math.abs(net));
+  netEl.className = 'ana-big ' + (net < 0 ? 'red' : 'green');
+
+  const netMax = Math.max(1, ...buckets.map(b => Math.abs(b.income - b.expense)));
+  document.getElementById('ana-net-bars').innerHTML = buckets.map(b => {
+    const v = b.income - b.expense;
+    const h = Math.max(2, Math.round(Math.abs(v) / netMax * 46));
+    const active = b.key === cur.key ? ' active' : '';
+    return `<div class="ana-col${active}">
+      <div class="ana-net-slot">
+        <div class="ana-net-half top">${v > 0 ? `<div class="ana-bar green" style="height:${h}px"></div>` : ''}</div>
+        <div class="ana-net-line"></div>
+        <div class="ana-net-half bottom">${v < 0 ? `<div class="ana-bar red" style="height:${h}px"></div>` : ''}</div>
+      </div>
+      <div class="ana-col-label">${b.label}</div>
+    </div>`;
+  }).join('');
+
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const now   = new Date();
+  const year  = now.getFullYear(), month = now.getMonth();
+  const first = new Date(year, month, 1);
+  const days  = new Date(year, month + 1, 0).getDate();
+  const lead  = (first.getDay() + 6) % 7;   // Monday-first grid
+
+  document.getElementById('ana-cal-month').textContent = `${MONTH_ABBR[month]} ${year}`;
+
+  // Daily expense totals
+  const byDay = {};
+  appData.expenses.forEach(r => {
+    const ts = parseSheetDate(r['Date']);
+    if (!ts) return;
+    const d = new Date(ts);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      byDay[d.getDate()] = (byDay[d.getDate()] || 0) + Number(r['Expense Amount'] || 0);
+    }
+  });
+  const max = Math.max(0, ...Object.values(byDay));
+
+  let html = '';
+  for (let i = 0; i < lead; i++) html += '<div class="cal-cell empty"></div>';
+  for (let d = 1; d <= days; d++) {
+    const amt = byDay[d] || 0;
+    let lvl = 0;
+    if (amt > 0 && max > 0) lvl = Math.min(4, Math.ceil(amt / max * 4));
+    const today = d === now.getDate() ? ' today' : '';
+    const label = amt > 0 ? shortAmt(amt) : '0';
+    html += `<div class="cal-cell l${lvl}${today}" title="${d} — ${fmt(amt)}">
+      <div class="cal-day">${d}</div><div class="cal-amt">${label}</div></div>`;
+  }
+  document.getElementById('ana-calendar').innerHTML = html;
+}
+
+// Compact amounts so they fit inside a calendar cell
+function shortAmt(n) {
+  const v = Math.abs(Number(n) || 0);
+  if (v >= 10000000) return (v / 10000000).toFixed(1).replace(/\.0$/,'') + 'Cr';
+  if (v >= 100000)   return (v / 100000).toFixed(1).replace(/\.0$/,'') + 'L';
+  if (v >= 1000)     return (v / 1000).toFixed(1).replace(/\.0$/,'') + 'k';
+  return String(Math.round(v));
 }
 
 // ── RENDER LOANS (grouped by person) ──
