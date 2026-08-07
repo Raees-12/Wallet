@@ -11,8 +11,33 @@
 <link rel="icon" type="image/png" href="Assets/fav.png">
 <link rel="apple-touch-icon" href="Assets/fav.png">
 <link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fonts load without blocking the first paint — the OS font shows for a frame,
+     then Plus Jakarta Sans swaps in. This is what gets the app on screen fastest. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+  media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"></noscript>
 <link rel="stylesheet" href="style.css">
+<script>
+// Applied before the first paint so the app never flashes the wrong theme
+// on the way in — this is what makes the hand-off from the OS splash seamless.
+(function () {
+  try {
+    var t = localStorage.getItem('wallet_theme') || 'light';
+    if (['light','dark','amoled','glass'].indexOf(t) === -1) t = 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    var bg = { light:'#f4f6fb', dark:'#12141a', amoled:'#000000', glass:'#0f1117' }[t];
+    document.documentElement.style.backgroundColor = bg;
+    var a = localStorage.getItem('wallet_accent');
+    if (a) document.documentElement.style.setProperty('--blue', a);
+    // Match the status bar straight away; app.js keeps it in sync afterwards
+    var bar = { dark:'#13131a', amoled:'#000000', glass:'#0d0b14' }[t] || a || '#1a73e8';
+    var meta = document.getElementById('meta-theme-color');
+    if (meta) meta.setAttribute('content', bar);
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <div id="app">
@@ -1066,7 +1091,7 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js" defer></script>
 
 <!-- PWA Install Banner -->
 <div id="pwa-install-bar" style="position:fixed;bottom:calc(var(--nav-h) + 12px);
