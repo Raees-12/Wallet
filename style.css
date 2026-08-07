@@ -991,3 +991,62 @@ body.no-scroll{overflow:hidden;}
   background:var(--surface2);border:1px solid var(--border);
   font-size:13px;font-weight:600;color:var(--text2);}
 .bank-total span:last-child{font-size:18px;font-weight:800;color:var(--text);}
+
+/* ══════════════════════════════════════════════
+   FILTER SHEETS — date picker, option lists, category picker
+   ══════════════════════════════════════════════ */
+.sheet-title.center{text-align:center;}
+
+/* Date picker */
+.year-row{display:flex;gap:9px;overflow-x:auto;padding:2px 0 4px;margin:0 -20px 16px;
+  padding-left:20px;padding-right:20px;
+  scrollbar-width:none;-ms-overflow-style:none;}
+.year-row::-webkit-scrollbar{display:none;}
+.year-pill{flex-shrink:0;padding:11px 22px;border-radius:24px;background:var(--surface2);
+  border:1.5px solid transparent;font-size:15px;font-weight:600;color:var(--text);
+  cursor:pointer;transition:all .16s;}
+.year-pill:active{transform:scale(.94);}
+.year-pill.active{border-color:var(--text);}
+.month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.month-cell{padding:16px 6px;border-radius:18px;background:var(--surface2);
+  border:1.5px solid transparent;text-align:center;
+  font-size:15px;font-weight:600;color:var(--text);
+  cursor:pointer;transition:all .16s;}
+.month-cell:active{transform:scale(.95);}
+.month-cell.active{border-color:var(--text);}
+.month-cell.disabled{color:var(--text3);opacity:.42;cursor:default;}
+.month-cell.disabled:active{transform:none;}
+.dp-tip{font-size:11.5px;color:var(--text3);text-align:center;margin-top:16px;line-height:1.5;}
+
+/* Option rows (type / period / account) */
+.opt-list{display:flex;flex-direction:column;gap:9px;}
+.opt-row{display:flex;align-items:center;justify-content:space-between;
+  padding:17px 18px;border-radius:18px;background:var(--surface2);
+  border:1.5px solid transparent;font-size:15px;font-weight:600;color:var(--text);
+  cursor:pointer;transition:all .16s;}
+.opt-row:active{transform:scale(.985);}
+.opt-row.active{border-color:var(--text);}
+.opt-note{font-size:12px;font-weight:600;color:var(--text3);
+  background:var(--card-hover);padding:5px 13px;border-radius:20px;}
+
+/* Category picker grid */
+.catpick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+  max-height:46vh;overflow-y:auto;padding:2px;
+  scrollbar-width:none;-ms-overflow-style:none;}
+.catpick-grid::-webkit-scrollbar{display:none;}
+.catpick{cursor:pointer;text-align:center;position:relative;
+  border-radius:16px;padding:10px 4px 8px;border:1.5px solid transparent;
+  transition:all .16s;}
+.catpick:active{transform:scale(.94);}
+.catpick.active{border-color:var(--text);background:var(--surface2);}
+.catpick.active::after{content:'';position:absolute;top:4px;right:4px;
+  width:16px;height:16px;border-radius:50%;background:var(--text);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='4'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  background-size:11px;background-position:center;background-repeat:no-repeat;}
+.catpick-tile{width:100%;aspect-ratio:1;border-radius:14px;background:var(--surface2);
+  border:2px solid var(--border);display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;margin-bottom:6px;}
+.catpick-tile.all{color:var(--text2);}
+.catpick-tile.all svg{width:22px;height:22px;}
+.catpick-label{font-size:10.5px;font-weight:600;color:var(--text2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
