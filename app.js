@@ -471,6 +471,7 @@ function resetAppState() {
   summaryAnchor   = { y: new Date().getFullYear(), m: new Date().getMonth() };
   summaryCats     = null;
   summaryCustom   = { from: null, to: null };
+  closeMore(true);
   summarySel      = null;
   anaPeriod       = 'monthly';
   anaView.flow    = { offset: 0, selected: BUCKET_COUNT - 1 };
@@ -490,7 +491,7 @@ function resetAppState() {
   Object.keys(_entryRegistry).forEach(k => delete _entryRegistry[k]);
   // Close anything left open from the previous account
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
-   'entry-detail-overlay','add-overlay','emi-add-overlay','cat-entries-overlay',
+   'entry-detail-overlay','cat-entries-overlay',
    'datepick-overlay','type-overlay','period-overlay','catfilter-overlay',
    'anaperiod-overlay','day-overlay','budget-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
@@ -584,7 +585,7 @@ function logoutAllConfirm() {
 
 // Small dot on the avatar hinting that more than one account is available
 function updateAccountBadge() {
-  ['topbar-avatar','hero-avatar'].forEach(id => {
+  ['hero-avatar'].forEach(id => {
     const av = document.getElementById(id);
     if (av) av.classList.toggle('multi', accounts.length > 1);
   });
@@ -599,7 +600,6 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(theme);
   setAccent(loadAccent());
   updateEyeIcon();
-  initAvatarGestures('topbar-avatar');
   initAvatarGestures('hero-avatar');
   initAnaSwipes();
   accounts = loadAccounts();
@@ -653,12 +653,10 @@ async function doLogin() {
 
 function initMainScreen() {
   const u = currentUser;
-  document.getElementById('topbar-greeting').textContent = 'Hi, '+u.username;
   const initial = u.username[0].toUpperCase();
-  document.getElementById('topbar-avatar').textContent = initial;
   const hero = document.getElementById('hero-avatar');
   if (hero) hero.textContent = initial;
-  document.body.classList.add('hide-topbar');   // dashboard is the landing page
+  renderHeader();
   updateAccountBadge();
 }
 
@@ -806,7 +804,7 @@ async function submitEntry(params,msg) {
   btns.forEach(b=>{b.disabled=true;b.textContent='Saving...';});
   try {
     const res = await api(params);
-    if (res.success) { showToast(msg); closeOverlay('add-overlay'); clearAddForm(); await loadAllData(); }
+    if (res.success) { showToast(msg); closeFullPage('add-overlay'); clearAddForm(); await loadAllData(); }
     else { showToast('Error: '+(res.error||'Failed')); }
   } catch(e) { showToast('Connection error'); }
   btns.forEach(b=>{b.disabled=false;});
@@ -1962,20 +1960,58 @@ function showScreen(id) {
 }
 
 // ── PAGE SWITCHING ──
+// Pages reached through the More panel light up the More button instead of
+// having a nav slot of their own.
+const MORE_PAGES = ['loans', 'emis', 'budget'];
+
 function switchPage(page) {
-  document.body.classList.toggle('hide-topbar', page === 'dashboard');
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  const navKey = MORE_PAGES.includes(page) ? 'more' : page;
   document.querySelectorAll('.nav-item').forEach(n => {
-    n.classList.toggle('active', n.dataset.page === page);
+    n.classList.toggle('active', n.dataset.page === navKey);
   });
-  if (page === 'emis') {
-    // Show FAB only for EMI page with EMI add overlay
-    document.querySelector('.fab').onclick = () => openEMIAddModal();
-  } else {
-    document.querySelector('.fab').onclick = () => openAddModal();
+  if (page === 'budget') renderBudgetPage();
+}
+
+// ══════════════════════════════════════════════════════════════
+// MORE PANEL
+// ══════════════════════════════════════════════════════════════
+let _moreOpen = false;
+
+function openMore() {
+  const ls = appData.loanSummary || [];
+  const pend = ls.filter(l => Number(l.pending) > 0).length;
+  const emiActive = (appData.emis || []).filter(e => String(e['Status']) !== 'Closed').length;
+  document.getElementById('more-loan-sub').textContent =
+    pend ? `${pend} still open` : 'Lent & borrowed';
+  document.getElementById('more-emi-sub').textContent =
+    emiActive ? `${emiActive} running` : 'Instalments';
+  document.getElementById('more-budget-sub').textContent =
+    prefs.budget ? fmt(prefs.budget) + ' limit' : 'Set limits';
+
+  document.getElementById('more-backdrop').classList.add('open');
+  document.getElementById('more-panel').classList.add('open');
+  _moreOpen = true;
+  buzz(8);
+  try { history.pushState({ walletMore: true }, ''); } catch(e) {}
+}
+
+function closeMore(skipHistory) {
+  if (!_moreOpen) return;
+  _moreOpen = false;
+  document.getElementById('more-backdrop').classList.remove('open');
+  document.getElementById('more-panel').classList.remove('open');
+  if (!skipHistory) {
+    try { if (history.state && history.state.walletMore) history.back(); } catch(e) {}
   }
+}
+
+function goMore(page) {
+  closeMore();
+  setTimeout(() => switchPage(page), 120);
 }
 
 // ── OVERLAY HELPERS ──
@@ -1992,11 +2028,34 @@ function openAddModal() {
   document.getElementById('exp-date').value  = todayISO();
   document.getElementById('inc-date').value  = todayISO();
   document.getElementById('loan-date').value = todayISO();
-  document.getElementById('add-overlay').classList.add('open');
+  openFullPage('add-overlay');
 }
 
+function closeAddModal() { closeFullPage('add-overlay'); }
+
+// Shared open/close for the full-page panels so back always does the right thing
+let _fullPageStack = [];
+
+function openFullPage(id) {
+  document.getElementById(id).classList.add('open');
+  document.body.classList.add('no-scroll');
+  _fullPageStack.push(id);
+  try { history.pushState({ walletFull: id }, ''); } catch(e) {}
+}
+
+function closeFullPage(id) {
+  const i = _fullPageStack.lastIndexOf(id);
+  if (i === -1) return;
+  _fullPageStack.splice(i, 1);
+  document.getElementById(id).classList.remove('open');
+  if (!_fullPageStack.length && !_settingsOpen) document.body.classList.remove('no-scroll');
+  try { if (history.state && history.state.walletFull === id) history.back(); } catch(e) {}
+}
+
+function closeEMIAddModal() { closeFullPage('emi-add-overlay'); }
+
 function openEMIAddModal() {
-  document.getElementById('emi-add-overlay').classList.add('open');
+  openFullPage('emi-add-overlay');
   switchEMIAddTab('new');
   document.getElementById('new-emi-start').value = todayISO();
   document.getElementById('new-emi-paid').value = todayISO();
@@ -2070,6 +2129,15 @@ function closeSettings() {
 }
 
 window.addEventListener('popstate', () => {
+  if (_moreOpen) { closeMore(true); return; }
+  if (_fullPageStack.length) {
+    const id = _fullPageStack.pop();
+    document.getElementById(id).classList.remove('open');
+    if (!_fullPageStack.length && !_settingsOpen && !_notifOpen) {
+      document.body.classList.remove('no-scroll');
+    }
+    return;
+  }
   // Notifications sits on its own history entry, above Settings
   if (_notifOpen) {
     _notifOpen = false;
@@ -2125,7 +2193,11 @@ function renderSettings() {
   document.getElementById('settings-install-row').style.display = window._installPrompt ? 'flex' : 'none';
 
   const bv = document.getElementById('settings-budget-value');
-  if (bv) bv.textContent = prefs.budget ? fmt(prefs.budget) : 'Not set';
+  if (bv) {
+    const nCat = Object.keys(prefs.catBudgets || {}).length;
+    bv.textContent = prefs.budget ? fmt(prefs.budget)
+      : nCat ? `${nCat} categories` : 'Not set';
+  }
   document.getElementById('pref-hide-balance').checked = !!prefs.hideBalance;
   document.getElementById('pref-decimals').checked     = !!prefs.decimals;
   document.getElementById('pref-haptics').checked      = !!prefs.haptics;
@@ -2457,7 +2529,7 @@ async function copyFeedback() {
 // PREFERENCES
 // ══════════════════════════════════════════════════════════════
 const PREFS_KEY = 'wallet_prefs_v1';
-let prefs = { hideBalance: true, decimals: false, haptics: true, budget: 0 };
+let prefs = { hideBalance: true, decimals: false, haptics: true, budget: 0, catBudgets: {} };
 
 function loadPrefs() {
   try {
@@ -2467,7 +2539,7 @@ function loadPrefs() {
 }
 function setPref(key, val) {
   prefs[key] = !!val;
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e) {}
+  persistPrefs();
   if (key === 'hideBalance') { balanceHidden = !!val; updateEyeIcon(); }
   if (key === 'decimals')    renderAll();
   else if (key === 'hideBalance') renderDashboard();
@@ -2759,19 +2831,7 @@ function renderDashboard() {
   setDelta('exp-delta', totalExp, pExp, false);
   updateEyeIcon();
 
-  // Greeting + today's date
-  const greet = document.getElementById('hh-greet');
-  if (greet && currentUser) greet.textContent = 'Hi, ' + currentUser.username + '!';
-  const dateEl = document.getElementById('hh-date');
-  if (dateEl) {
-    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const months = ['January','February','March','April','May','June','July',
-                    'August','September','October','November','December'];
-    dateEl.textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-  }
-
-  renderBudget(totalExp);
-  renderUpcomingEMIs();
+  renderHeader();
   refreshNotifications();
 
   const allTxns = [
@@ -2783,6 +2843,20 @@ function renderDashboard() {
   recentEl.innerHTML = allTxns.length
     ? allTxns.map(r => entryItemHTML(r)).join('')
     : emptyState('No transactions', 'Add your first entry using the + button');
+}
+
+// Header sits above every page now, so it renders independently of the dashboard
+function renderHeader() {
+  const greet = document.getElementById('hh-greet');
+  if (greet && currentUser) greet.textContent = 'Hi, ' + currentUser.username + '!';
+  const dateEl = document.getElementById('hh-date');
+  if (dateEl) {
+    const now = new Date();
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['January','February','March','April','May','June','July',
+                    'August','September','October','November','December'];
+    dateEl.textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }
 }
 
 // Small ↗5.2% chip next to the monthly figures. `goodUp` flips the colour so a
@@ -2803,31 +2877,81 @@ function setDelta(id, current, previous, goodUp) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// MONTHLY BUDGET
+// BUDGET — an overall monthly limit plus per-category limits
+// Stored locally in prefs: { budget: number, catBudgets: { [name]: number } }
 // ══════════════════════════════════════════════════════════════
-function renderBudget(spent) {
-  const budget = Number(prefs.budget || 0);
-  const pctEl  = document.getElementById('budget-pct');
-  const fill   = document.getElementById('budget-fill');
-  const foot   = document.getElementById('budget-foot');
-  if (!pctEl) return;
-
-  if (!budget) {
-    pctEl.textContent = 'Set';
-    pctEl.className = 'hcard-link';
-    fill.style.width = '0%';
-    foot.textContent = 'Tap to set a monthly budget';
-    return;
-  }
-  const pct = Math.round(spent / budget * 100);
-  fill.style.width = Math.min(100, pct) + '%';
-  fill.className = 'budget-fill' + (pct >= 100 ? ' over' : pct >= 80 ? ' warn' : '');
-  pctEl.textContent = pct + '%';
-  pctEl.className = 'hcard-link' + (pct >= 100 ? ' over' : pct >= 80 ? ' warn' : '');
-  foot.innerHTML = `Spent <b>${fmt(spent)}</b> / ${fmt(budget)}` +
-    (pct >= 100 ? ` · <span class="over">${fmt(spent - budget)} over</span>` : '');
+function monthSpend() {
+  const now = new Date();
+  const f = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const t = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23,59,59,999).getTime();
+  return appData.expenses.filter(r => {
+    const ts = parseSheetDate(r['Date']);
+    return ts >= f && ts <= t;
+  });
 }
 
+function catSpendMap() {
+  const map = {};
+  monthSpend().forEach(r => {
+    const c = r['Category'] || 'Uncategorised';
+    map[c] = (map[c] || 0) + Number(r['Expense Amount'] || 0);
+  });
+  return map;
+}
+
+function renderBudgetPage() {
+  const rows  = monthSpend();
+  const spent = rows.reduce((s, r) => s + Number(r['Expense Amount'] || 0), 0);
+  const budget = Number(prefs.budget || 0);
+
+  document.getElementById('bg-spent').textContent = fmt(spent);
+  const fill = document.getElementById('bg-hero-fill');
+  const left = document.getElementById('bg-hero-left');
+  if (budget) {
+    const pct = Math.round(spent / budget * 100);
+    fill.style.width = Math.min(100, pct) + '%';
+    fill.className = 'bg-hero-fill' + (pct >= 100 ? ' over' : pct >= 80 ? ' warn' : '');
+    left.innerHTML = pct >= 100
+      ? `${fmt(spent - budget)} over your ${fmt(budget)} limit`
+      : `${fmt(budget - spent)} left of ${fmt(budget)} · ${pct}%`;
+  } else {
+    fill.style.width = '0%';
+    left.textContent = 'No overall budget set';
+  }
+
+  const spendMap = catSpendMap();
+  const budgets  = prefs.catBudgets || {};
+  const names = [...new Set([...Object.keys(budgets), ...Object.keys(spendMap)])]
+    .filter(n => budgets[n])                       // only categories with a limit
+    .sort((a, b) => (spendMap[b]||0)/budgets[b] - (spendMap[a]||0)/budgets[a]);
+
+  const el = document.getElementById('cat-budget-list');
+  if (!names.length) {
+    el.innerHTML = `<div class="hcard"><div class="hcard-empty">
+      No category budgets yet — tap <b>+ Add</b> to set one</div></div>`;
+    return;
+  }
+  el.innerHTML = names.map(n => {
+    const lim = Number(budgets[n] || 0);
+    const sp  = Number(spendMap[n] || 0);
+    const pct = lim ? Math.round(sp / lim * 100) : 0;
+    const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+    return `<div class="cb-row" onclick="openCatBudgetSheet('${esc(n).replace(/'/g,"\\'")}')">
+      <div class="cb-top">
+        <div class="cb-left">
+          <span class="cb-dot" style="background:${catColor(n)}"></span>
+          <span class="cb-name">${esc(n)}</span>
+        </div>
+        <span class="cb-pct ${cls}">${pct}%</span>
+      </div>
+      <div class="cb-bar"><div class="cb-fill ${cls}" style="width:${Math.min(100,pct)}%"></div></div>
+      <div class="cb-foot"><span>${fmt(sp)} of ${fmt(lim)}</span>
+        <span class="${cls}">${sp > lim ? fmt(sp - lim) + ' over' : fmt(lim - sp) + ' left'}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Overall limit ──
 function openBudgetSheet() {
   document.getElementById('budget-input').value = prefs.budget || '';
   document.getElementById('budget-overlay').classList.add('open');
@@ -2836,15 +2960,61 @@ function openBudgetSheet() {
 function saveBudget() {
   const v = document.getElementById('budget-input').value;
   prefs.budget = v ? Math.max(0, Number(v)) : 0;
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e) {}
+  persistPrefs();
   closeOverlay('budget-overlay');
   showToast(prefs.budget ? 'Budget saved' : 'Budget cleared');
-  renderDashboard();
+  if (currentPage === 'budget') renderBudgetPage();
+  refreshNotifications();
 }
 
-// ══════════════════════════════════════════════════════════════
-// UPCOMING EMIs — the "upcoming bills" list
-// ══════════════════════════════════════════════════════════════
+// ── Per-category limits ──
+let _editingCatBudget = null;
+
+function openCatBudgetSheet(cat) {
+  _editingCatBudget = cat || null;
+  const sel = document.getElementById('cb-cat');
+  const cats = getActiveCategories('expense');
+  const extra = Object.keys(prefs.catBudgets || {}).filter(c => !cats.includes(c));
+  sel.innerHTML = [...cats, ...extra]
+    .map(c => `<option value="${esc(c)}" ${c === cat ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  sel.disabled = !!cat;
+  document.getElementById('cb-sheet-title').textContent = cat ? 'Edit budget' : 'Category budget';
+  document.getElementById('cb-amount').value = cat ? (prefs.catBudgets[cat] || '') : '';
+  document.getElementById('cb-delete').style.display = cat ? 'flex' : 'none';
+  document.getElementById('catbudget-overlay').classList.add('open');
+}
+
+function saveCatBudget() {
+  const cat = document.getElementById('cb-cat').value;
+  const amt = Number(document.getElementById('cb-amount').value || 0);
+  if (!cat)  { showToast('Pick a category'); return; }
+  if (amt <= 0) { showToast('Enter an amount above zero'); return; }
+  prefs.catBudgets = prefs.catBudgets || {};
+  prefs.catBudgets[cat] = amt;
+  persistPrefs();
+  closeOverlay('catbudget-overlay');
+  showToast('Budget set for ' + cat);
+  renderBudgetPage();
+  refreshNotifications();
+}
+
+function deleteCatBudget() {
+  const cat = _editingCatBudget;
+  if (!cat) return;
+  showConfirm(`Remove the budget for "${cat}"?`, () => {
+    delete prefs.catBudgets[cat];
+    persistPrefs();
+    closeOverlay('catbudget-overlay');
+    renderBudgetPage();
+    refreshNotifications();
+  }, 'Remove');
+}
+
+function persistPrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e) {}
+}
+
+// EMIs falling due inside a window — feeds the notification list
 function upcomingEMIs(days = 45) {
   const today = new Date(); today.setHours(0,0,0,0);
   const limit = today.getTime() + days * 86400000;
@@ -2856,38 +3026,6 @@ function upcomingEMIs(days = 45) {
     })
     .filter(x => x.ts && x.ts <= limit)
     .sort((a, b) => a.ts - b.ts);
-}
-
-function renderUpcomingEMIs() {
-  const el = document.getElementById('upcoming-emis');
-  if (!el) return;
-  const list = upcomingEMIs().slice(0, 4);
-  if (!list.length) {
-    el.innerHTML = `<div class="hcard-empty">Nothing due in the next 45 days</div>`;
-    return;
-  }
-  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  el.innerHTML = list.map(({ e, ts, left }) => {
-    const d = new Date(ts);
-    const late = left < 0;
-    const soon = left >= 0 && left <= 3;
-    const when = late ? `${Math.abs(left)} days overdue`
-               : left === 0 ? 'Due today'
-               : left === 1 ? '1 day left'
-               : `${left} days left`;
-    return `<div class="bill-row" onclick="switchPage('emis')">
-      <div class="bill-icon ${late ? 'late' : soon ? 'soon' : ''}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </div>
-      <div class="bill-info">
-        <div class="bill-name">${esc(String(e['Description'] || e['Category'] || 'EMI'))}</div>
-        <div class="bill-meta ${late ? 'late' : soon ? 'soon' : ''}">
-          Due ${d.getDate()} ${MON[d.getMonth()]} · ${when}
-        </div>
-      </div>
-      <div class="bill-amt">${fmt(Number(e['EMI Amount'] || 0))}</div>
-    </div>`;
-  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2944,6 +3082,19 @@ function buildNotifications() {
         action: openBudgetSheet });
     }
   }
+
+  const cb = prefs.catBudgets || {};
+  const spendMap = catSpendMap();
+  const tagM = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+  Object.keys(cb).forEach(c => {
+    const lim = Number(cb[c] || 0);
+    const sp  = Number(spendMap[c] || 0);
+    if (!lim || sp < lim) return;
+    out.push({ id:`catbudget:${c}:${tagM}`, kind:'danger', icon:'alert',
+      title:`${c} budget exceeded`,
+      body:`${fmt(sp)} spent against a ${fmt(lim)} limit.`,
+      action: () => switchPage('budget') });
+  });
 
   const ls = appData.loanSummary || [];
   const owe = ls.filter(l => /borrow/i.test(l.type)).reduce((s,l) => s + Number(l.pending||0), 0);
