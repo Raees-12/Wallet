@@ -37,6 +37,9 @@ module.exports = async (req, res) => {
       case 'markEMIMissed':       return res.json(await markEMIMissed(params));
       case 'deleteEMIById':       return res.json(await deleteEMIById(params));
       case 'saveConfig':          return res.json(await saveConfig(params));
+      case 'addAccount':          return res.json(await addAccount(params));
+      case 'editAccount':         return res.json(await editAccount(params));
+      case 'deleteAccount':       return res.json(await deleteAccount(params));
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
     }
@@ -69,15 +72,19 @@ async function login({ username, password }) {
 async function getAllData({ userId }) {
   if (!userId) return { success: false, error: 'userId required' };
 
-  const [expenses, income, loans, emis, emiPayments, cfgRows] = await Promise.all([
+  const [expenses, income, loans, emis, emiPayments, cfgRows, accounts] = await Promise.all([
     db.from('expenses').select('*').eq('ID', userId),
     db.from('income').select('*').eq('ID', userId),
     db.from('loan').select('*').eq('ID', userId),
     db.from('emi').select('*').eq('ID', userId),
     db.from('emi_payments').select('*').eq('ID', userId),
     db.from('personalised_configuration').select('*').eq('ID', userId),
+    db.from('bank_accounts').select('*').eq('ID', userId),
   ]);
   for (const r of [expenses, income, loans, emis, emiPayments, cfgRows]) if (r.error) throw r.error;
+  // The accounts table is optional — if the migration hasn't been run yet the
+  // rest of the app keeps working and the account features stay hidden.
+  const accountRows = accounts.error ? [] : (accounts.data || []);
 
   const config = buildConfig(cfgRows.data || []);
 
@@ -89,6 +96,9 @@ async function getAllData({ userId }) {
     loanSummary: buildLoanSummary(loans.data || []),
     emis: emis.data || [],
     emiPayments: emiPayments.data || [],
+    accounts: accountRows
+      .map(a => ({ rowId: a.row_id, name: a['Account Name'], opening: toNum(a['Opening Balance']) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     config,
   };
 }
@@ -189,34 +199,37 @@ function buildLoanSummary(loanRows) {
 // EXPENSE / INCOME
 // ══════════════════════════════════════════════════════════════
 async function addExpense(p) {
-  const { userId, date, amount, category, description, paymentMode, remarks } = p;
+  const { userId, date, amount, category, description, paymentMode, remarks, account } = p;
   if (!userId || !amount || !description) return { success: false, error: 'Missing required fields' };
   const { error } = await db.from('expenses').insert({
     ID: userId, Date: date, Category: category, Description: description,
     'Payment Mode': paymentMode, 'Expense Amount': toNum(amount), Remarks: remarks || '-',
+    Account: account || null,
   });
   if (error) throw error;
   return { success: true };
 }
 
 async function addIncome(p) {
-  const { userId, date, amount, category, description, paymentMode, remarks } = p;
+  const { userId, date, amount, category, description, paymentMode, remarks, account } = p;
   if (!userId || !amount || !description) return { success: false, error: 'Missing required fields' };
   const { error } = await db.from('income').insert({
     ID: userId, Date: date, Category: category, Description: description,
     'Payment Mode': paymentMode, 'Income Amount': toNum(amount), Remarks: remarks || '-',
+    Account: account || null,
   });
   if (error) throw error;
   return { success: true };
 }
 
 async function editExpense(p) {
-  const { userId, rowIndex, date, amount, category, description, paymentMode, remarks } = p;
+  const { userId, rowIndex, date, amount, category, description, paymentMode, remarks, account } = p;
   if (!userId || !rowIndex || !amount || !description) return { success: false, error: 'Missing required fields' };
   const { error, count } = await db.from('expenses')
     .update({
       Date: date, Category: category, Description: description,
       'Payment Mode': paymentMode, 'Expense Amount': toNum(amount), Remarks: remarks || '-',
+      Account: account || null,
     }, { count: 'exact' })
     .eq('ID', userId).eq('row_id', rowIndex);
   if (error) throw error;
@@ -236,12 +249,13 @@ async function deleteExpense(p) {
 }
 
 async function editIncome(p) {
-  const { userId, rowIndex, date, amount, category, description, paymentMode, remarks } = p;
+  const { userId, rowIndex, date, amount, category, description, paymentMode, remarks, account } = p;
   if (!userId || !rowIndex || !amount || !description) return { success: false, error: 'Missing required fields' };
   const { error, count } = await db.from('income')
     .update({
       Date: date, Category: category, Description: description,
       'Payment Mode': paymentMode, 'Income Amount': toNum(amount), Remarks: remarks || '-',
+      Account: account || null,
     }, { count: 'exact' })
     .eq('ID', userId).eq('row_id', rowIndex);
   if (error) throw error;
@@ -612,5 +626,70 @@ async function saveConfig(p) {
     await replaceConfigRows(userId, uncheckedTypeName(type), uncheckedArr);
   }
 
+  return { success: true };
+}
+
+// ══════════════════════════════════════════════════════════════
+// BANK ACCOUNTS
+// ══════════════════════════════════════════════════════════════
+async function addAccount({ userId, name, opening }) {
+  if (!userId || !name || !String(name).trim()) {
+    return { success: false, error: 'Account name required' };
+  }
+  const { error } = await db.from('bank_accounts').insert({
+    ID: userId,
+    'Account Name': String(name).trim(),
+    'Opening Balance': toNum(opening),
+  });
+  if (error) {
+    if (error.code === '23505') return { success: false, error: 'An account with that name already exists' };
+    throw error;
+  }
+  return { success: true };
+}
+
+async function editAccount({ userId, rowId, name, opening }) {
+  if (!userId || !rowId || !name || !String(name).trim()) {
+    return { success: false, error: 'Missing required fields' };
+  }
+  const oldRow = await db.from('bank_accounts')
+    .select('*').eq('ID', userId).eq('row_id', rowId).maybeSingle();
+  if (oldRow.error) throw oldRow.error;
+  if (!oldRow.data) return { success: false, error: 'Account not found' };
+
+  const newName = String(name).trim();
+  const oldName = oldRow.data['Account Name'];
+
+  const { error } = await db.from('bank_accounts')
+    .update({ 'Account Name': newName, 'Opening Balance': toNum(opening) })
+    .eq('ID', userId).eq('row_id', rowId);
+  if (error) {
+    if (error.code === '23505') return { success: false, error: 'An account with that name already exists' };
+    throw error;
+  }
+
+  // Transactions store the account by name, so a rename has to follow through
+  if (newName !== oldName) {
+    await db.from('expenses').update({ Account: newName }).eq('ID', userId).eq('Account', oldName);
+    await db.from('income').update({ Account: newName }).eq('ID', userId).eq('Account', oldName);
+  }
+  return { success: true };
+}
+
+async function deleteAccount({ userId, rowId }) {
+  if (!userId || !rowId) return { success: false, error: 'Missing required fields' };
+  const row = await db.from('bank_accounts')
+    .select('*').eq('ID', userId).eq('row_id', rowId).maybeSingle();
+  if (row.error) throw row.error;
+  if (!row.data) return { success: false, error: 'Account not found' };
+
+  const name = row.data['Account Name'];
+  const { error } = await db.from('bank_accounts')
+    .delete().eq('ID', userId).eq('row_id', rowId);
+  if (error) throw error;
+
+  // Transactions are kept — they just fall back to unassigned
+  await db.from('expenses').update({ Account: null }).eq('ID', userId).eq('Account', name);
+  await db.from('income').update({ Account: null }).eq('ID', userId).eq('Account', name);
   return { success: true };
 }
