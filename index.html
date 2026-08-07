@@ -70,12 +70,23 @@
 
 <!-- MAIN -->
 <div id="main-screen" class="screen">
-  <div class="topbar">
-    <img id="topbar-logo" src="Assets/l_logo.png" class="app-logo topbar-logo" alt="Wallet">
-    <div class="topbar-right">
-      <span class="topbar-greeting" id="topbar-greeting"></span>
-      <div class="avatar-btn" id="topbar-avatar"
-        title="Tap to switch account · Double-tap for the next one">R</div>
+  <div class="app-head">
+    <div class="hh-left">
+      <div class="hero-avatar" id="hero-avatar"
+        title="Tap to switch account · Double-tap for the next one">T</div>
+      <div class="hh-text">
+        <div class="hh-greet" id="hh-greet">Hi there!</div>
+        <div class="hh-date" id="hh-date"></div>
+      </div>
+    </div>
+    <div class="hh-actions">
+      <button class="hh-btn" onclick="openNotifications()" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="hh-dot" id="notif-dot" style="display:none"></span>
+      </button>
+      <button class="hh-btn" onclick="openSettings()" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </div>
 
@@ -83,26 +94,6 @@
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <div class="home-head">
-        <div class="hh-left">
-          <div class="hero-avatar" id="hero-avatar"
-            title="Tap to switch account · Double-tap for the next one">T</div>
-          <div class="hh-text">
-            <div class="hh-greet" id="hh-greet">Hi there!</div>
-            <div class="hh-date" id="hh-date"></div>
-          </div>
-        </div>
-        <div class="hh-actions">
-          <button class="hh-btn" onclick="openNotifications()" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span class="hh-dot" id="notif-dot" style="display:none"></span>
-          </button>
-          <button class="hh-btn" onclick="openSettings()" aria-label="Settings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
-        </div>
-      </div>
-
       <div class="bal-card">
         <div class="bc-top">
           <button class="bc-acct" onclick="openAnaAccountSheet()">
@@ -135,23 +126,6 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="hcard" onclick="openBudgetSheet()">
-        <div class="hcard-head">
-          <span class="hcard-title">Monthly Budget</span>
-          <span class="hcard-link" id="budget-pct">Set</span>
-        </div>
-        <div class="budget-bar"><div class="budget-fill" id="budget-fill"></div></div>
-        <div class="budget-foot" id="budget-foot">Tap to set a monthly budget</div>
-      </div>
-
-      <div class="hcard">
-        <div class="hcard-head">
-          <span class="hcard-title">Upcoming EMIs</span>
-          <button class="hcard-link" onclick="switchPage('emis')">View All ›</button>
-        </div>
-        <div id="upcoming-emis"></div>
       </div>
 
       <div class="loan-strip">
@@ -290,6 +264,28 @@
       </div>
       <div id="emis-list"></div>
     </div>
+    <!-- BUDGET -->
+    <div class="page" id="page-budget">
+      <div class="page-header">
+        <div><div class="page-title">Budget</div><div class="page-sub" id="budget-sub">This month</div></div>
+      </div>
+
+      <div class="bal-card budget-hero">
+        <div class="bc-label">Spent this month</div>
+        <div class="bc-amount" id="bg-spent">₹0</div>
+        <div class="bg-hero-bar"><div class="bg-hero-fill" id="bg-hero-fill"></div></div>
+        <div class="bg-hero-foot">
+          <span id="bg-hero-left">No overall budget set</span>
+          <button class="bg-hero-btn" onclick="openBudgetSheet()">Set limit</button>
+        </div>
+      </div>
+
+      <div class="hcard-head" style="margin:18px 4px 10px">
+        <span class="hcard-title">By category</span>
+        <button class="hcard-link" onclick="openCatBudgetSheet()">+ Add</button>
+      </div>
+      <div id="cat-budget-list"></div>
+    </div>
   </div>
 
   <nav class="bottom-nav">
@@ -301,33 +297,65 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21.2 15.9A10 10 0 1 1 8.1 2.8"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
       <span class="nav-label">Summary</span>
     </div>
+
+    <button class="nav-fab" onclick="openAddModal()" aria-label="Add entry">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+
     <div class="nav-item" data-page="analytics" onclick="switchPage('analytics')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span class="nav-label">Analytics</span>
     </div>
-    <div class="nav-item" data-page="loans" onclick="switchPage('loans')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      <span class="nav-label">Loans</span>
-    </div>
-    <div class="nav-item" data-page="emis" onclick="switchPage('emis')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
-      <span class="nav-label">EMI</span>
+    <div class="nav-item" data-page="more" onclick="openMore()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span class="nav-label">More</span>
     </div>
   </nav>
-  <button class="fab" onclick="openAddModal()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-  </button>
 </div>
 
-<!-- ADD MODAL -->
-<div class="overlay" id="add-overlay" onclick="closeOverlay('add-overlay',event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Add Entry</div>
-    <div class="sheet-tabs" id="add-tabs">
-      <div class="sheet-tab active" onclick="switchAddTab('expense')">Expense</div>
-      <div class="sheet-tab" onclick="switchAddTab('income')">Income</div>
-      <div class="sheet-tab" onclick="switchAddTab('loan')">Loan</div>
+<!-- MORE PANEL -->
+<div class="more-backdrop" id="more-backdrop" onclick="closeMore()"></div>
+<div class="more-panel" id="more-panel">
+  <div class="more-handle"></div>
+  <div class="more-title">More</div>
+  <div class="more-grid">
+    <button class="more-item" onclick="goMore('loans')">
+      <span class="more-icon" style="background:rgba(139,92,246,.14);color:#8b5cf6">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+      </span>
+      <span class="more-name">Loans</span>
+      <span class="more-sub" id="more-loan-sub">Lent &amp; borrowed</span>
+    </button>
+    <button class="more-item" onclick="goMore('emis')">
+      <span class="more-icon" style="background:rgba(var(--blue-rgb),.14);color:var(--blue)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+      </span>
+      <span class="more-name">EMI</span>
+      <span class="more-sub" id="more-emi-sub">Instalments</span>
+    </button>
+    <button class="more-item" onclick="goMore('budget')">
+      <span class="more-icon" style="background:rgba(52,168,83,.14);color:var(--green)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </span>
+      <span class="more-name">Budget</span>
+      <span class="more-sub" id="more-budget-sub">Set limits</span>
+    </button>
+  </div>
+</div>
+
+<!-- ADD ENTRY — FULL PAGE -->
+<div id="add-overlay" class="fullpage">
+  <div class="spage-scroll">
+    <div class="spage-head">
+      <button class="spage-back" onclick="closeAddModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <h1 class="spage-title">Add Entry</h1>
+    </div>
+    <div class="segmented" id="add-tabs">
+      <div class="segment active" onclick="switchAddTab('expense')">Expense</div>
+      <div class="segment" onclick="switchAddTab('income')">Income</div>
+      <div class="segment" onclick="switchAddTab('loan')">Loan</div>
     </div>
     <!-- Expense -->
     <div id="add-expense">
@@ -498,7 +526,7 @@
       </div>
 
       <div class="settings-card">
-        <div class="settings-row" onclick="closeSettings();setTimeout(openBudgetSheet,320)">
+        <div class="settings-row" onclick="closeSettings();setTimeout(()=>switchPage('budget'),320)">
           <div class="settings-chip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
@@ -879,6 +907,24 @@
   </div>
 </div>
 
+<!-- CATEGORY BUDGET SHEET -->
+<div class="overlay" id="catbudget-overlay" onclick="closeOverlay('catbudget-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="cb-sheet-title">Category budget</div>
+    <div class="form-group">
+      <div class="field-label">Category</div>
+      <select id="cb-cat"></select>
+    </div>
+    <div class="form-group">
+      <div class="field-label">Monthly limit ₹</div>
+      <input type="number" id="cb-amount" placeholder="0" inputmode="decimal">
+    </div>
+    <button class="btn btn-primary" onclick="saveCatBudget()">Save</button>
+    <button class="btn btn-danger" id="cb-delete" style="display:none" onclick="deleteCatBudget()">Remove budget</button>
+  </div>
+</div>
+
 <!-- MONTHLY BUDGET SHEET -->
 <div class="overlay" id="budget-overlay" onclick="closeOverlay('budget-overlay',event)">
   <div class="sheet">
@@ -1093,10 +1139,14 @@
 </div>
 
 <!-- ADD EMI OVERLAY -->
-<div class="overlay" id="emi-add-overlay" onclick="closeOverlay('emi-add-overlay',event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">Add New EMI</div>
+<div id="emi-add-overlay" class="fullpage">
+  <div class="spage-scroll">
+    <div class="spage-head">
+      <button class="spage-back" onclick="closeEMIAddModal()" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <h1 class="spage-title">Add EMI</h1>
+    </div>
     <div class="sheet-tabs" id="emi-add-tabs" style="margin-bottom:16px">
       <div class="sheet-tab active" onclick="switchEMIAddTab('new')">New EMI</div>
       <div class="sheet-tab" onclick="switchEMIAddTab('progress')">Already In Progress</div>
