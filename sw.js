@@ -10,7 +10,7 @@
 // an actively-developed app. Icons/images still use cache-first since they
 // almost never change.
 
-const CACHE_NAME = 'wallet-v14'; // bump this on every sw.js change to force clients to update
+const CACHE_NAME = 'wallet-v15'; // bump this on every sw.js change to force clients to update
 const BASE = '/';
 
 const SHELL_FILES = [
