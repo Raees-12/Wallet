@@ -1037,3 +1037,12 @@ body.no-scroll{overflow:hidden;}
 .donut-period-btn.is-cat{color:var(--text);font-weight:700;}
 .donut-period-btn.is-cat svg{transform:rotate(180deg);}
 .donut circle{transition:opacity .3s ease,stroke-width .25s ease;}
+
+/* Swipe feedback on the analytics cards */
+.ana-plot,#ana-calendar{touch-action:pan-y;}
+.slide-r{animation:slideFromLeft .3s cubic-bezier(.32,.72,0,1);}
+.slide-l{animation:slideFromRight .3s cubic-bezier(.32,.72,0,1);}
+@keyframes slideFromLeft{from{opacity:0;transform:translateX(-26px);}to{opacity:1;transform:none;}}
+@keyframes slideFromRight{from{opacity:0;transform:translateX(26px);}to{opacity:1;transform:none;}}
+.swipe-note{font-size:11px;color:var(--text3);text-align:center;margin:-4px 0 14px;
+  letter-spacing:.2px;}
