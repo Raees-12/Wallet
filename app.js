@@ -479,8 +479,10 @@ function resetAppState() {
   summarySel      = null;
   anaPeriod       = 'monthly';
   anaSelected     = BUCKET_COUNT - 1;
+  anaOffset       = 0;
   netUnit         = 'cur';
   anaCalDay       = null;
+  calRef          = null;
   dashFilterType  = 'month';
   dashFilterRange = { from: null, to: null };
   showSettledLoans   = false;
@@ -605,6 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setAccent(loadAccent());
   updateEyeIcon();
   initAvatarGestures();
+  initAnaSwipes();
   accounts = loadAccounts();
   const saved = loadSession();
   // Restore the last active account; fall back to the first saved account if
@@ -3215,8 +3218,10 @@ const BUCKET_COUNT = 6;
 
 let anaPeriod   = 'monthly';
 let anaSelected = BUCKET_COUNT - 1;   // index of the highlighted bucket
+let anaOffset   = 0;                  // how many periods back the window is scrolled
 let netUnit     = 'cur';              // 'cur' | 'pct'
 let anaCalDay   = null;               // selected calendar day
+let calRef      = null;               // {y,m} month the calendar is showing
 
 function openAnaPeriodSheet() {
   document.getElementById('anaperiod-opts').innerHTML = ANA_PERIODS
@@ -3227,7 +3232,9 @@ function openAnaPeriodSheet() {
 function setAnaPeriod(p) {
   anaPeriod   = p;
   anaSelected = BUCKET_COUNT - 1;
+  anaOffset   = 0;
   anaCalDay   = null;
+  calRef      = null;
   document.getElementById('chip-ana-period').textContent =
     ANA_PERIODS.find(x => x.id === p).label;
   renderAnalytics();
@@ -3243,15 +3250,83 @@ function setNetUnit(u) {
 
 function selectBucket(i) {
   anaSelected = i;
-  anaCalDay = null;
+  anaCalDay   = null;
+  calRef      = null;         // let the calendar follow the newly selected bucket
   renderAnalytics();
+}
+
+// ── SWIPING ──
+// Swipe right on either chart to walk backwards through time, left to come
+// forward. The calendar swipes month by month independently.
+function shiftAnaWindow(dir) {          // dir: +1 = older, -1 = newer
+  const next = anaOffset + dir;
+  if (next < 0) { showToast('Already at the latest period'); return; }
+  anaOffset = next;
+  anaCalDay = null;
+  calRef    = null;
+  renderAnalytics();
+  slideHint('ana-plot', dir);
+  slideHint('ana-net-plot', dir);
+  buzz(8);
+}
+
+function shiftCalendar(dir) {           // dir: +1 = previous month, -1 = next
+  const base = calRef || calRefFromBucket(anaBuckets()[anaSelected]);
+  const d = new Date(base.y, base.m - dir, 1);
+  const now = new Date();
+  if (d.getFullYear() > now.getFullYear() ||
+     (d.getFullYear() === now.getFullYear() && d.getMonth() > now.getMonth())) {
+    showToast('That month has not happened yet');
+    return;
+  }
+  calRef = { y: d.getFullYear(), m: d.getMonth() };
+  anaCalDay = null;
+  renderCalendar();
+  slideHint('ana-calendar', dir);
+  buzz(8);
+}
+
+function calRefFromBucket(b) {
+  const d = new Date(b ? b.to : Date.now());
+  return { y: d.getFullYear(), m: d.getMonth() };
+}
+
+function slideHint(id, dir) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('slide-l', 'slide-r');
+  void el.offsetWidth;                  // restart the animation
+  el.classList.add(dir > 0 ? 'slide-r' : 'slide-l');
+}
+
+// Generic horizontal swipe detector that ignores vertical scrolling
+function attachSwipe(id, onSwipe) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  let sx = 0, sy = 0, tracking = false;
+  el.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; tracking = true; }, { passive: true });
+  el.addEventListener('pointercancel', () => { tracking = false; });
+  el.addEventListener('pointerup', e => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    onSwipe(dx > 0 ? 1 : -1);           // drag right = go back in time
+  });
+}
+
+function initAnaSwipes() {
+  attachSwipe('ana-plot',     d => shiftAnaWindow(d));
+  attachSwipe('ana-net-plot', d => shiftAnaWindow(d));
+  attachSwipe('ana-calendar', d => shiftCalendar(d));
 }
 
 // Builds the last N buckets for whichever granularity is active
 function anaBuckets() {
   const now = new Date();
   const out = [];
-  for (let i = BUCKET_COUNT - 1; i >= 0; i--) {
+  for (let k = BUCKET_COUNT - 1; k >= 0; k--) {
+    const i = k + anaOffset;            // how many periods back this bucket sits
     let from, to, label, sub = '';
     if (anaPeriod === 'weekly') {
       const day = (now.getDay() + 6) % 7;
@@ -3356,9 +3431,11 @@ function plotHTML(buckets, max, barsFor, fmtAxis) {
 }
 
 function renderCalendar(bucket) {
-  // Calendar always shows a month — for wider buckets, the month the bucket ends in
-  const ref   = new Date(bucket ? bucket.to : Date.now());
-  const year  = ref.getFullYear(), month = ref.getMonth();
+  // Calendar always shows a single month. It follows the selected bucket unless
+  // the user has swiped it somewhere else.
+  if (bucket && !calRef) calRef = calRefFromBucket(bucket);
+  if (!calRef) calRef = calRefFromBucket(null);
+  const year = calRef.y, month = calRef.m;
   const first = new Date(year, month, 1);
   const days  = new Date(year, month + 1, 0).getDate();
   const lead  = (first.getDay() + 6) % 7;
@@ -3419,7 +3496,7 @@ function openDay(year, month, day) {
     ? rows.map(r => entryItemHTML(r)).join('')
     : emptyState('Nothing that day', 'No income or expenses recorded');
   document.getElementById('day-overlay').classList.add('open');
-  renderCalendar(anaBuckets()[anaSelected]);
+  renderCalendar();
 }
 
 // Compact amounts so axis labels and calendar cells stay readable
@@ -3520,6 +3597,13 @@ function personCardHTML(g) {
 }
 
 // ── LOAN CARD HTML (single loan — used inside a person's sheet) ──
+// Title priority: remark → person's name → loan ID as a last resort
+function loanTitle(l) {
+  const remark = String(l.remarks || '').trim();
+  if (remark && remark !== '-') return remark;
+  return l.person || l.loanId || 'Loan';
+}
+
 function loanCardHTML(l) {
   const isLent    = (l.type || '').toLowerCase() === 'lent';
   const color     = isLent ? 'var(--green)' : 'var(--red)';
@@ -3530,12 +3614,13 @@ function loanCardHTML(l) {
   const typeLabel = isLent ? 'To Receive' : 'To Pay Back';
   const loanId    = l.loanId || '';
   const isSettled = pending <= 0;
+  const title     = loanTitle(l);
 
   return `<div class="loan-card" onclick="openLoanAction('${loanId}')">
     <div class="loan-card-header">
       <div class="loan-card-left">
         <div class="loan-person-info">
-          <div class="loan-person-name">${loanId}</div>
+          <div class="loan-person-name">${esc(title)}</div>
           <div class="loan-person-meta">${isSettled ? 'Settled' : typeLabel}</div>
         </div>
       </div>
@@ -3609,7 +3694,7 @@ function openLoanAction(loanId) {
   const pct     = total > 0 ? Math.round((paid / total) * 100) : 0;
 
   document.getElementById('la-header').innerHTML = `
-    <div class="la-name">${l.person} <span style="font-size:12px;color:var(--text2);font-weight:500">(${l.loanId})</span></div>
+    <div class="la-name">${esc(loanTitle(l))} <span style="font-size:12px;color:var(--text2);font-weight:500">${esc(l.person)}</span></div>
     <div class="la-meta">${isLent ? 'You lent money · To Receive' : 'You borrowed · To Pay Back'}</div>
     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:8px">
       <span>Total: ${fmt(total)}</span><span>Pending: <b style="color:${color}">${fmt(pending)}</b></span>
