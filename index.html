@@ -155,6 +155,10 @@
           <span id="chip-ana-period">Monthly</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
+        <div class="fchip" onclick="openAnaAccountSheet()" style="display:none">
+          <span id="chip-ana-account">All accounts</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
       </div>
 
       <div class="swipe-note">Swipe any chart or the calendar to move through time</div>
@@ -170,7 +174,7 @@
       <div class="ana-card">
         <div class="ana-head">
           <div>
-            <div class="ana-card-title">Income left</div>
+            <div class="ana-card-title">Income left<span class="ana-card-sub" id="ana-net-label"></span></div>
             <div class="ana-big" id="ana-net">₹0</div>
           </div>
           <div class="unit-toggle">
@@ -279,6 +283,7 @@
       <div class="form-group"><div class="field-label">Payment Mode</div>
         <select id="exp-pm"><option>UPI</option><option>Cash</option><option>Card</option><option>Net Banking</option><option>Wallet</option></select>
       </div>
+      <div class="form-group account-field" style="display:none"><div class="field-label">Account</div><select id="add-exp-account"></select></div>
       <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="exp-remarks" placeholder="Optional"></div>
       <button class="btn btn-primary" onclick="submitExpense()">Add Expense</button>
     </div>
@@ -293,6 +298,7 @@
       <div class="form-group"><div class="field-label">Payment Mode</div>
         <select id="inc-pm"><option>Net Banking</option><option>UPI</option><option>Cash</option><option>Cheque</option><option>Wallet</option></select>
       </div>
+      <div class="form-group account-field" style="display:none"><div class="field-label">Account</div><select id="add-inc-account"></select></div>
       <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="inc-remarks" placeholder="Optional"></div>
       <button class="btn btn-primary" onclick="submitIncome()">Add Income</button>
     </div>
@@ -398,6 +404,14 @@
           </div>
           <div class="settings-row-label">Accounts</div>
           <div class="settings-row-value" id="settings-accounts-value">1</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row" onclick="openSubPage('bank')">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          </div>
+          <div class="settings-row-label">Bank accounts</div>
+          <div class="settings-row-value" id="settings-bank-value"></div>
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
         <div class="settings-row" onclick="openSubPage('categories')">
@@ -550,6 +564,30 @@
         </div>
       </div>
       <div class="settings-note">Double-tap your profile picture to jump to the next account, or hold it to pick one.</div>
+    </div>
+  </div>
+
+  <!-- ─── BANK ACCOUNTS ─── -->
+  <div class="spage" id="spage-bank">
+    <div class="spage-scroll">
+      <div class="spage-head">
+        <button class="spage-back" onclick="settingsBack()" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="spage-title">Bank accounts</h1>
+      </div>
+      <div class="settings-note" style="margin-top:-8px">Track balances across separate accounts. Each entry can be tagged with the account it came from.</div>
+      <div class="settings-card"><div id="bank-list"></div></div>
+      <div class="bank-total" id="bank-total" style="display:none"></div>
+      <div class="settings-card">
+        <div class="settings-row" onclick="openAddAccount()">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+          <div class="settings-row-label">Add bank account</div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -758,6 +796,33 @@
     </div>
   </div>
 
+</div>
+
+<!-- BANK ACCOUNT EDITOR SHEET -->
+<div class="overlay" id="bank-overlay" onclick="closeOverlay('bank-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="bank-sheet-title">Add bank account</div>
+    <div class="form-group">
+      <div class="field-label">Account name</div>
+      <input type="text" id="bank-name" placeholder="e.g. HDFC Savings" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <div class="field-label">Money already in this account</div>
+      <input type="number" id="bank-opening" placeholder="0" inputmode="decimal">
+    </div>
+    <button class="btn btn-primary" id="bank-save-btn" onclick="saveAccount()">Save</button>
+    <button class="btn btn-danger" id="bank-delete-btn" style="display:none" onclick="deleteAccountConfirm()">Delete account</button>
+  </div>
+</div>
+
+<!-- ANALYTICS ACCOUNT SHEET -->
+<div class="overlay" id="anaacct-overlay" onclick="closeOverlay('anaacct-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title center">Filter by account</div>
+    <div class="opt-list" id="anaacct-opts"></div>
+  </div>
 </div>
 
 <!-- ANALYTICS PERIOD SHEET -->
