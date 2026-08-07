@@ -83,73 +83,92 @@
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <div class="hero">
-        <div class="hero-top">
+      <div class="home-head">
+        <div class="hh-left">
           <div class="hero-avatar" id="hero-avatar"
             title="Tap for profile · Double-tap to switch · Hold to choose">T</div>
-          <button class="hero-icon-btn" id="bal-eye-btn" onclick="toggleBalance()">
+          <div class="hh-text">
+            <div class="hh-greet" id="hh-greet">Hi there!</div>
+            <div class="hh-date" id="hh-date"></div>
+          </div>
+        </div>
+        <div class="hh-actions">
+          <button class="hh-btn" onclick="openNotifications()" aria-label="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="hh-dot" id="notif-dot" style="display:none"></span>
+          </button>
+          <button class="hh-btn" onclick="openSettings()" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="bal-card">
+        <div class="bc-top">
+          <button class="bc-acct" onclick="openAnaAccountSheet()">
+            <span id="bc-account">All accounts</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+        <div class="bc-label">Total Balance</div>
+        <div class="bc-amount-row">
+          <div class="bc-amount" id="dash-balance">
+            <span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span>
+          </div>
+          <button class="bc-eye" id="bal-eye-btn" onclick="toggleBalance()" aria-label="Toggle balance">
             <span id="bal-eye-icon"></span>
           </button>
         </div>
-
-        <div class="hero-label">Balance</div>
-        <div class="hero-balance" id="dash-balance">
-          <span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span>
-        </div>
-        <div class="hero-trend" id="hero-trend"></div>
-
-        <div class="card-stack">
-          <div class="stack-layer stack-l2"></div>
-          <div class="stack-layer stack-l1"></div>
-          <div class="stack-front">
-            <div class="sf-cols">
-              <div>
-                <div class="sf-label">Income</div>
-                <div class="sf-val" id="dash-income">₹0</div>
-              </div>
-              <div class="sf-div"></div>
-              <div>
-                <div class="sf-label">Expenses</div>
-                <div class="sf-val" id="dash-expense">₹0</div>
-              </div>
+        <div class="bc-split">
+          <div class="bc-col">
+            <div class="bc-sub">Monthly Income</div>
+            <div class="bc-line">
+              <span class="bc-val" id="dash-income">₹0</span>
+              <span class="bc-delta" id="inc-delta"></span>
             </div>
-            <div class="sf-foot">
-              <span id="dash-period-label">This Month</span>
-              <span class="sf-brand">WALLET</span>
+          </div>
+          <div class="bc-col">
+            <div class="bc-sub">Monthly Expense</div>
+            <div class="bc-line">
+              <span class="bc-val" id="dash-expense">₹0</span>
+              <span class="bc-delta" id="exp-delta"></span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="dash-sheet">
-        <div class="quick-row">
-          <button class="quick-btn" onclick="quickAdd('income')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-            Income
-          </button>
-          <button class="quick-btn quick-mid" onclick="quickAdd('loan')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-          </button>
-          <button class="quick-btn" onclick="quickAdd('expense')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></svg>
-            Expense
-          </button>
+      <div class="hcard" onclick="openBudgetSheet()">
+        <div class="hcard-head">
+          <span class="hcard-title">Monthly Budget</span>
+          <span class="hcard-link" id="budget-pct">Set</span>
         </div>
+        <div class="budget-bar"><div class="budget-fill" id="budget-fill"></div></div>
+        <div class="budget-foot" id="budget-foot">Tap to set a monthly budget</div>
+      </div>
 
-        <div class="loan-strip">
-          <div class="loan-mini" onclick="switchPage('loans')">
-            <div class="lm-label">To Receive</div>
-            <div class="lm-val green" id="dash-receive">₹0</div>
-          </div>
-          <div class="loan-mini" onclick="switchPage('loans')">
-            <div class="lm-label">To Pay Back</div>
-            <div class="lm-val red" id="dash-owe">₹0</div>
-          </div>
+      <div class="hcard">
+        <div class="hcard-head">
+          <span class="hcard-title">Upcoming EMIs</span>
+          <button class="hcard-link" onclick="switchPage('emis')">View All ›</button>
         </div>
+        <div id="upcoming-emis"></div>
+      </div>
 
-        <div class="rt-head">
-          <div class="rt-title">Recent Transactions</div>
-          <button class="rt-viewall" onclick="switchPage('summary')">View All</button>
+      <div class="loan-strip">
+        <div class="loan-mini" onclick="switchPage('loans')">
+          <div class="lm-label">To Receive</div>
+          <div class="lm-val green" id="dash-receive">₹0</div>
+        </div>
+        <div class="loan-mini" onclick="switchPage('loans')">
+          <div class="lm-label">To Pay Back</div>
+          <div class="lm-val red" id="dash-owe">₹0</div>
+        </div>
+      </div>
+
+      <div class="hcard">
+        <div class="hcard-head">
+          <span class="hcard-title">Recent Transactions</span>
+          <button class="hcard-link" onclick="switchPage('summary')">View All ›</button>
         </div>
         <div id="dash-recent" class="entry-list"></div>
       </div>
@@ -479,6 +498,14 @@
       </div>
 
       <div class="settings-card">
+        <div class="settings-row" onclick="closeSettings();setTimeout(openBudgetSheet,320)">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="settings-row-label">Monthly budget<span class="settings-row-hint">Spending limit shown on Home</span></div>
+          <div class="settings-row-value" id="settings-budget-value"></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div class="settings-row settings-row-static">
           <div class="settings-chip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -834,6 +861,32 @@
     </div>
   </div>
 
+</div>
+
+<!-- NOTIFICATIONS SHEET -->
+<div class="overlay" id="notif-overlay" onclick="closeOverlay('notif-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="notif-head">
+      <div class="sheet-title" style="margin:0">Notifications</div>
+      <button class="notif-clear" onclick="markNotificationsRead()">Mark all read</button>
+    </div>
+    <div id="notif-list"></div>
+  </div>
+</div>
+
+<!-- MONTHLY BUDGET SHEET -->
+<div class="overlay" id="budget-overlay" onclick="closeOverlay('budget-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Monthly budget</div>
+    <p class="settings-note" style="margin:-4px 0 14px">Set a spending limit for the month. Leave it empty to turn the budget card off.</p>
+    <div class="form-group">
+      <div class="field-label">Budget amount</div>
+      <input type="number" id="budget-input" placeholder="e.g. 25000" inputmode="decimal">
+    </div>
+    <button class="btn btn-primary" onclick="saveBudget()">Save budget</button>
+  </div>
 </div>
 
 <!-- BANK ACCOUNT EDITOR SHEET -->
