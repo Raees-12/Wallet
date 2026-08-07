@@ -500,11 +500,6 @@ function resetAppState() {
    'anaperiod-overlay','day-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
-  // Reset dashboard chips back to "This Month"
-  document.querySelectorAll('.dash-chip').forEach(c =>
-    c.classList.toggle('active', c.dataset.type === 'month'));
-  const rangeRow = document.getElementById('dash-range-row');
-  if (rangeRow) rangeRow.style.display = 'none';
   const out = document.getElementById('report-output');
   if (out) out.innerHTML = '<div class="report-placeholder">Select a period and generate your report</div>';
   const expBtns = document.getElementById('report-export-btns');
@@ -2706,30 +2701,15 @@ function populateCategorySelects() {
 }
 
 // ── DASHBOARD FILTER ──
-function setDashFilter(el) {
-  document.querySelectorAll('.dash-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  dashFilterType = el.dataset.type;
-  const rangeRow = document.getElementById('dash-range-row');
-  if (rangeRow) rangeRow.style.display = dashFilterType === 'range' ? 'flex' : 'none';
-  if (dashFilterType !== 'range') renderDashboard();
-}
-
-function applyDashRange() {
-  dashFilterRange.from = document.getElementById('dash-from').value;
-  dashFilterRange.to   = document.getElementById('dash-to').value;
-  if (!dashFilterRange.from || !dashFilterRange.to) { showToast('Select both dates'); return; }
-  renderDashboard();
-}
 
 // ── MONTH FILTER CHIPS ──
 // The Summary page rebuilds its own chips on every render, so this just
 // refreshes whichever type is currently showing.
 function buildMonthChips() { renderSummary(); }
 
-function buildDashMonthChips() {
-  // Dashboard uses its own dash-chip elements already in HTML — nothing extra needed
-}
+// The dashboard is pinned to the current month — Summary and Analytics are
+// where period switching lives now.
+function buildDashMonthChips() {}
 
 
 // ── RENDER ALL ──
