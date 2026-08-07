@@ -1204,3 +1204,13 @@ body.hide-topbar .topbar{display:none;}
 .notif-empty svg{width:38px;height:38px;margin-bottom:12px;opacity:.5;}
 .notif-empty div{font-size:14px;font-weight:700;color:var(--text2);}
 .notif-empty span{display:block;font-size:12px;margin-top:5px;}
+
+/* Full-screen panels that aren't part of the Settings stack */
+.fullpage{position:fixed;inset:0;z-index:195;background:var(--bg);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);opacity:0;visibility:hidden;
+  transition:transform .3s cubic-bezier(.32,.72,0,1),opacity .2s ease,visibility .3s;}
+.fullpage.open{transform:translateX(0);opacity:1;visibility:visible;}
+#notif-screen .notif-head{display:flex;align-items:flex-end;
+  justify-content:space-between;gap:12px;}
+#notif-screen .spage-title{margin:0;}
