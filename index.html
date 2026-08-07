@@ -83,51 +83,76 @@
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <div class="balance-card">
-        <div class="balance-label" id="dash-period-label">This Month</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
-          <div class="balance-amount" style="margin:0" id="dash-balance"><span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span></div>
-          <button id="bal-eye-btn"
-            style="background:rgba(255,255,255,.15);border:none;border-radius:8px;
-            padding:8px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;
-            -webkit-tap-highlight-color:transparent;touch-action:manipulation;
-            min-width:36px;min-height:36px;justify-content:center"
-            onclick="toggleBalance()"
-            ontouchend="event.preventDefault();toggleBalance()">
-            <span id="bal-eye-icon" style="display:flex;align-items:center;color:rgba(255,255,255,.85)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-            </span>
+      <div class="hero">
+        <div class="hero-top">
+          <div class="hero-avatar" id="hero-avatar"
+            title="Tap for profile · Double-tap to switch · Hold to choose">T</div>
+          <button class="hero-icon-btn" id="bal-eye-btn" onclick="toggleBalance()">
+            <span id="bal-eye-icon"></span>
           </button>
         </div>
-        <div class="balance-row">
-          <div class="balance-mini">
-            <div class="bm-icon" style="background:rgba(52,168,83,.25)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#34a853" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+
+        <div class="hero-label">Balance</div>
+        <div class="hero-balance" id="dash-balance">
+          <span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span>
+        </div>
+        <div class="hero-trend" id="hero-trend"></div>
+
+        <div class="card-stack">
+          <div class="stack-layer stack-l2"></div>
+          <div class="stack-layer stack-l1"></div>
+          <div class="stack-front">
+            <div class="sf-cols">
+              <div>
+                <div class="sf-label">Income</div>
+                <div class="sf-val" id="dash-income">₹0</div>
+              </div>
+              <div class="sf-div"></div>
+              <div>
+                <div class="sf-label">Expenses</div>
+                <div class="sf-val" id="dash-expense">₹0</div>
+              </div>
             </div>
-            <div><div class="bm-label">Income</div><div class="bm-val" id="dash-income">₹0</div></div>
-          </div>
-          <div class="balance-mini">
-            <div class="bm-icon" style="background:rgba(234,67,53,.25)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ea4335" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
+            <div class="sf-foot">
+              <span id="dash-period-label">This Month</span>
+              <span class="sf-brand">WALLET</span>
             </div>
-            <div><div class="bm-label">Expenses</div><div class="bm-val" id="dash-expense">₹0</div></div>
           </div>
         </div>
       </div>
-      <div class="stats-grid">
-        <div class="stat-tile">
-          <div class="st-label">To Receive</div>
-          <div class="st-val green" id="dash-receive">₹0</div>
-          <div class="st-sub">Lent pending</div>
+
+      <div class="dash-sheet">
+        <div class="quick-row">
+          <button class="quick-btn" onclick="quickAdd('income')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            Income
+          </button>
+          <button class="quick-btn quick-mid" onclick="quickAdd('loan')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </button>
+          <button class="quick-btn" onclick="quickAdd('expense')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 7 17 17 7 17"/></svg>
+            Expense
+          </button>
         </div>
-        <div class="stat-tile">
-          <div class="st-label">To Pay Back</div>
-          <div class="st-val red" id="dash-owe">₹0</div>
-          <div class="st-sub">Borrowed pending</div>
+
+        <div class="loan-strip">
+          <div class="loan-mini" onclick="switchPage('loans')">
+            <div class="lm-label">To Receive</div>
+            <div class="lm-val green" id="dash-receive">₹0</div>
+          </div>
+          <div class="loan-mini" onclick="switchPage('loans')">
+            <div class="lm-label">To Pay Back</div>
+            <div class="lm-val red" id="dash-owe">₹0</div>
+          </div>
         </div>
+
+        <div class="rt-head">
+          <div class="rt-title">Recent Transactions</div>
+          <button class="rt-viewall" onclick="switchPage('summary')">View All</button>
+        </div>
+        <div id="dash-recent" class="entry-list"></div>
       </div>
-      <div class="sec-title">Recent Transactions</div>
-      <div id="dash-recent" class="entry-list"></div>
     </div>
 
     <!-- SUMMARY -->
