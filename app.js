@@ -347,6 +347,13 @@ function updateMetaThemeColor() {
   meta.content = fixed[theme] || document.documentElement.style.getPropertyValue('--blue').trim() || '#1a73e8';
 }
 
+// Dashboard quick actions — open the add sheet straight on the right tab
+function quickAdd(type) {
+  openAddModal();
+  switchAddTab(type);
+  buzz(8);
+}
+
 // ── AVATAR GESTURES ──
 // Tap        → Profile
 // Double-tap → jump straight to the next account (no picker)
@@ -359,8 +366,8 @@ let _pointerStart   = null;
 const LONG_PRESS_MS = 500;
 const DOUBLE_TAP_MS = 280;
 
-function initAvatarGestures() {
-  const av = document.getElementById('topbar-avatar');
+function initAvatarGestures(id) {
+  const av = document.getElementById(id || 'topbar-avatar');
   if (!av) return;
 
   // Stop the OS text-selection / callout menu that a double-tap normally triggers
@@ -589,8 +596,10 @@ function logoutAllConfirm() {
 
 // Small dot on the avatar hinting that more than one account is available
 function updateAccountBadge() {
-  const av = document.getElementById('topbar-avatar');
-  if (av) av.classList.toggle('multi', accounts.length > 1);
+  ['topbar-avatar','hero-avatar'].forEach(id => {
+    const av = document.getElementById(id);
+    if (av) av.classList.toggle('multi', accounts.length > 1);
+  });
   if (_settingsOpen) { renderSettings(); renderAccountRows('settings-accounts-list'); }
 }
 
@@ -602,7 +611,8 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme(theme);
   setAccent(loadAccent());
   updateEyeIcon();
-  initAvatarGestures();
+  initAvatarGestures('topbar-avatar');
+  initAvatarGestures('hero-avatar');
   initAnaSwipes();
   accounts = loadAccounts();
   const saved = loadSession();
@@ -656,7 +666,11 @@ async function doLogin() {
 function initMainScreen() {
   const u = currentUser;
   document.getElementById('topbar-greeting').textContent = 'Hi, '+u.username;
-  document.getElementById('topbar-avatar').textContent = u.username[0].toUpperCase();
+  const initial = u.username[0].toUpperCase();
+  document.getElementById('topbar-avatar').textContent = initial;
+  const hero = document.getElementById('hero-avatar');
+  if (hero) hero.textContent = initial;
+  document.body.classList.add('hide-topbar');   // dashboard is the landing page
   updateAccountBadge();
 }
 
@@ -1261,11 +1275,9 @@ function updateEyeIcon() {
   if (!icon) return;
   // hidden = show crossed-eye (so user knows they can reveal)
   // visible = show open-eye (so user knows they can hide)
-  if (balanceHidden) {
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-  } else {
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-  }
+  icon.innerHTML = balanceHidden
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 
 // ── TOAST ──
@@ -1963,6 +1975,7 @@ function showScreen(id) {
 
 // ── PAGE SWITCHING ──
 function switchPage(page) {
+  document.body.classList.toggle('hide-topbar', page === 'dashboard');
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -2702,6 +2715,35 @@ function populateCategorySelects() {
 
 // ── DASHBOARD FILTER ──
 
+// Compares this month's net against last month's and renders the pill under
+// the balance. Percentages are meaningless when last month was zero, so we
+// fall back to a plain label instead of showing an infinite jump.
+function renderTrend(balance) {
+  const el = document.getElementById('hero-trend');
+  if (!el) return;
+  if (balanceHidden) { el.innerHTML = '<span class="trend-pill flat">Hidden</span>'; return; }
+
+  const now = new Date();
+  const pf = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+  const pt = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999).getTime();
+  const within = r => { const ts = parseSheetDate(r['Date']); return ts >= pf && ts <= pt; };
+  const prev =
+    appData.income.filter(within).reduce((s,r) => s + Number(r['Income Amount']||0), 0) -
+    appData.expenses.filter(within).reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
+
+  if (!prev) {
+    el.innerHTML = `<span class="trend-pill flat">This month</span>`;
+    return;
+  }
+  const change = (balance - prev) / Math.abs(prev) * 100;
+  const up = change >= 0;
+  const arrow = up
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="9 7 17 7 17 15"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 9 17 17 9 17"/></svg>';
+  el.innerHTML = `<span class="trend-pill ${up ? 'up' : 'down'}">${arrow}
+    ${Math.abs(change).toFixed(2)}% vs last month</span>`;
+}
+
 // ── MONTH FILTER CHIPS ──
 // The Summary page rebuilds its own chips on every render, so this just
 // refreshes whichever type is currently showing.
@@ -2740,17 +2782,16 @@ function renderDashboard() {
   const toReceive = loanSummary.filter(l => l.type === 'Lent' || l.type === 'lent').reduce((s, l) => s + Number(l.pending || 0), 0);
   const toOwe     = loanSummary.filter(l => l.type === 'Borrowed' || l.type === 'borrowed').reduce((s, l) => s + Number(l.pending || 0), 0);
 
-  // Period label
-  const labelMap = { today: 'Today', week: 'This Week', month: 'This Month', range: 'Custom Range' };
-  const periodLabel = labelMap[dashFilterType] || 'This Month';
   const el = document.getElementById('dash-period-label');
-  if (el) el.textContent = periodLabel;
+  if (el) el.textContent = 'This Month';
 
   document.getElementById('dash-balance').innerHTML = fmtBalance(balance);
+  renderTrend(balance);
   document.getElementById('dash-income').textContent  = fmtMini(totalInc);
   document.getElementById('dash-expense').textContent = fmtMini(totalExp);
   document.getElementById('dash-receive').textContent = fmt(toReceive);
   document.getElementById('dash-owe').textContent     = fmt(toOwe);
+  updateEyeIcon();
 
   // Recent transactions — merge expenses + income, sort newest first, take 10
   const allTxns = [
