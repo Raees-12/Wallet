@@ -469,7 +469,7 @@ function renderAccountRows(containerId) {
 // Reset every piece of per-user view state so one account never shows
 // another's numbers, filters, or open sheets.
 function resetAppState() {
-  appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], config:{} };
+  appData = { expenses:[], income:[], loans:[], loanSummary:[], emis:[], emiPayments:[], accounts:[], config:{} };
   balanceHidden   = prefs.hideBalance;
   summaryType     = 'expense';
   summaryPeriod   = 'monthly';
@@ -478,11 +478,12 @@ function resetAppState() {
   summaryCustom   = { from: null, to: null };
   summarySel      = null;
   anaPeriod       = 'monthly';
-  anaSelected     = BUCKET_COUNT - 1;
-  anaOffset       = 0;
+  anaView.flow    = { offset: 0, selected: BUCKET_COUNT - 1 };
+  anaView.net     = { offset: 0, selected: BUCKET_COUNT - 1 };
   netUnit         = 'cur';
   anaCalDay       = null;
   calRef          = null;
+  anaAccount      = null;
   dashFilterType  = 'month';
   dashFilterRange = { from: null, to: null };
   showSettledLoans   = false;
@@ -713,6 +714,7 @@ async function loadAllData(silent = false) {
     buildMonthChips();
     buildDashMonthChips();
     populateCategorySelects();
+    populateAccountSelects();
     renderAll();
     // Then refresh in background silently
     refreshFromAPI();
@@ -744,6 +746,7 @@ async function refreshFromAPI() {
     buildMonthChips();
     buildDashMonthChips();
     populateCategorySelects();
+    populateAccountSelects();
     renderAll();
   } catch(e) {
     console.error('refreshFromAPI error:', e);
@@ -784,12 +787,12 @@ function clearCache() {
 
 
 async function submitExpense() {
-  const p = {action:'addExpense',userId:currentUser.id,date:fmtDateForSheet(document.getElementById('exp-date').value),amount:document.getElementById('exp-amount').value,category:document.getElementById('exp-cat').value,description:document.getElementById('exp-desc').value,paymentMode:document.getElementById('exp-pm').value,remarks:document.getElementById('exp-remarks').value||'-'};
+  const p = {action:'addExpense',userId:currentUser.id,date:fmtDateForSheet(document.getElementById('exp-date').value),amount:document.getElementById('exp-amount').value,category:document.getElementById('exp-cat').value,description:document.getElementById('exp-desc').value,paymentMode:document.getElementById('exp-pm').value,remarks:document.getElementById('exp-remarks').value||'-',account:(document.getElementById('add-exp-account')||{}).value||''};
   if(!p.amount||!p.description){showToast('Fill required fields');return;}
   await submitEntry(p,'Expense added');
 }
 async function submitIncome() {
-  const p = {action:'addIncome',userId:currentUser.id,date:fmtDateForSheet(document.getElementById('inc-date').value),amount:document.getElementById('inc-amount').value,category:document.getElementById('inc-cat').value,description:document.getElementById('inc-desc').value,paymentMode:document.getElementById('inc-pm').value,remarks:document.getElementById('inc-remarks').value||'-'};
+  const p = {action:'addIncome',userId:currentUser.id,date:fmtDateForSheet(document.getElementById('inc-date').value),amount:document.getElementById('inc-amount').value,category:document.getElementById('inc-cat').value,description:document.getElementById('inc-desc').value,paymentMode:document.getElementById('inc-pm').value,remarks:document.getElementById('inc-remarks').value||'-',account:(document.getElementById('add-inc-account')||{}).value||''};
   if(!p.amount||!p.description){showToast('Fill required fields');return;}
   await submitEntry(p,'Income added');
 }
@@ -864,6 +867,7 @@ async function saveConfig() {
     if (res.success) {
       showToast('Categories saved');
       populateCategorySelects();
+    populateAccountSelects();
       markCatClean();
       renderCatList();
     } else { showToast('Error: '+(res.error||'Failed')); }
@@ -1833,6 +1837,9 @@ function toggleEntryEdit() {
   const catOpts = cats.map(c => `<option ${c===r._cat?'selected':''}>${c}</option>`).join('');
   const pmOpts = ['UPI','Cash','Card','Net Banking','Cheque','Wallet','Auto Debit']
     .map(p => `<option ${p===pm?'selected':''}>${p}</option>`).join('');
+  const curAcct = String(r['Account'] || '').trim();
+  const acctOpts = '<option value="">— No account —</option>' + accountsList()
+    .map(a => `<option value="${esc(a.name)}" ${a.name===curAcct?'selected':''}>${esc(a.name)}</option>`).join('');
 
   editForm.innerHTML = `
     <div class="form-group"><div class="field-label">Date</div><input type="date" id="edit-date" value="${isoDate}"></div>
@@ -1840,6 +1847,7 @@ function toggleEntryEdit() {
     <div class="form-group"><div class="field-label">Category</div><select id="edit-cat">${catOpts}</select></div>
     <div class="form-group"><div class="field-label">Description</div><input type="text" id="edit-desc" value="${desc}"></div>
     <div class="form-group"><div class="field-label">Payment Mode</div><select id="edit-pm">${pmOpts}</select></div>
+    <div class="form-group account-field" style="display:${hasAccounts()?'block':'none'}"><div class="field-label">Account</div><select id="edit-account">${acctOpts}</select></div>
     <div class="form-group"><div class="field-label">Remarks</div><input type="text" id="edit-remarks" value="${remarks==='­'?'':remarks}"></div>
     <button class="btn btn-primary" onclick="saveEntryEdit()">Save Changes</button>
     <button class="btn btn-ghost" onclick="renderEntryDetail()" style="margin-top:8px">Cancel</button>`;
@@ -1867,7 +1875,8 @@ async function saveEntryEdit() {
       rowIndex: r._rowIndex,
       date: newDate, amount: newAmt,
       category: newCat, description: newDesc,
-      paymentMode: newPM, remarks: newRemarks
+      paymentMode: newPM, remarks: newRemarks,
+      account: (document.getElementById('edit-account')||{}).value || ''
     });
     if (res.success) {
       showToast('Entry updated');
@@ -2021,6 +2030,7 @@ function openSubPage(name) {
   if (name === 'accounts')   renderAccountRows('settings-accounts-list');
   if (name === 'categories') { catTab = 'expense'; syncCatSegments(); renderCatList(); markCatClean(); }
   if (name === 'widgets')    renderWidgets();
+  if (name === 'bank')       renderAccountsPage();
   pushSettingsState();
 }
 
@@ -2093,6 +2103,10 @@ function renderSettings() {
   const catTotal = ['expense','income','loan','emi']
     .reduce((n,t) => n + getConfigList(t).length, 0);
   document.getElementById('settings-cat-value').textContent = catTotal + ' active';
+
+  const nAcct = accountsList().length;
+  document.getElementById('settings-bank-value').textContent =
+    nAcct ? (nAcct === 1 ? accountsList()[0].name : nAcct + ' accounts') : 'None yet';
 
   const theme = document.documentElement.getAttribute('data-theme') || 'light';
   document.getElementById('settings-theme-value').textContent = THEME_LABELS[theme] || 'Light';
@@ -3205,6 +3219,165 @@ function openCatEntries(cat) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// BANK ACCOUNTS
+// Transactions store the account by name in an "Account" column.
+// A blank value means the entry predates accounts, or wasn't assigned.
+// ══════════════════════════════════════════════════════════════
+const UNASSIGNED = '__none__';
+
+function accountsList() { return appData.accounts || []; }
+function hasAccounts()  { return accountsList().length > 0; }
+
+// Filters a row set down to the account currently selected in Analytics
+function accountRows(rows) {
+  if (!anaAccount) return rows;
+  if (anaAccount === UNASSIGNED) return rows.filter(r => !String(r['Account'] || '').trim());
+  return rows.filter(r => String(r['Account'] || '').trim() === anaAccount);
+}
+
+// Opening balance + income - expenses, for one account or all of them
+function accountBalance(name) {
+  const match = r => name == null
+    ? true
+    : String(r['Account'] || '').trim() === name;
+  const inc = appData.income.filter(match).reduce((s,r) => s + Number(r['Income Amount']||0), 0);
+  const exp = appData.expenses.filter(match).reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
+  const open = name == null
+    ? accountsList().reduce((s,a) => s + Number(a.opening||0), 0)
+    : Number((accountsList().find(a => a.name === name) || {}).opening || 0);
+  return open + inc - exp;
+}
+
+function openAnaAccountSheet() {
+  const opts = [{ id:'', label:'All accounts', note:'Default' }]
+    .concat(accountsList().map(a => ({ id:a.name, label:a.name })))
+    .concat([{ id:UNASSIGNED, label:'Unassigned' }]);
+  document.getElementById('anaacct-opts').innerHTML = opts
+    .map(o => optRow(o, (anaAccount || '') === o.id, `setAnaAccount('${esc(o.id).replace(/'/g,"\\'")}')`))
+    .join('');
+  document.getElementById('anaacct-overlay').classList.add('open');
+}
+
+function setAnaAccount(id) {
+  anaAccount = id || null;
+  renderAnalytics();
+  closeOverlay('anaacct-overlay');
+}
+
+// ── SETTINGS SUB-PAGE ──
+function renderAccountsPage() {
+  const list = accountsList();
+  const el = document.getElementById('bank-list');
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;color:var(--text3);padding:26px;font-size:13px">
+      No accounts yet — add one below</div>`;
+  } else {
+    el.innerHTML = list.map(a => {
+      const bal = accountBalance(a.name);
+      return `<div class="settings-row" onclick="openEditAccount(${a.rowId})">
+        <div class="settings-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        </div>
+        <div class="settings-row-label">${esc(a.name)}
+          <span class="settings-row-hint">Opening ${fmt(a.opening)}</span></div>
+        <div class="settings-row-value" style="color:${bal < 0 ? 'var(--red)' : 'var(--green)'}">${fmt(bal)}</div>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`;
+    }).join('');
+  }
+  const total = document.getElementById('bank-total');
+  if (list.length) {
+    const t = accountBalance(null);
+    total.style.display = 'block';
+    total.innerHTML = `<span>Combined balance</span>
+      <span style="color:${t < 0 ? 'var(--red)' : 'var(--text)'}">${fmt(t)}</span>`;
+  } else {
+    total.style.display = 'none';
+  }
+}
+
+let editingAccount = null;
+
+function openAddAccount() {
+  editingAccount = null;
+  document.getElementById('bank-sheet-title').textContent = 'Add bank account';
+  document.getElementById('bank-name').value = '';
+  document.getElementById('bank-opening').value = '';
+  document.getElementById('bank-delete-btn').style.display = 'none';
+  document.getElementById('bank-overlay').classList.add('open');
+}
+
+function openEditAccount(rowId) {
+  const a = accountsList().find(x => x.rowId === rowId);
+  if (!a) return;
+  editingAccount = a;
+  document.getElementById('bank-sheet-title').textContent = 'Edit account';
+  document.getElementById('bank-name').value = a.name;
+  document.getElementById('bank-opening').value = a.opening;
+  document.getElementById('bank-delete-btn').style.display = 'flex';
+  document.getElementById('bank-overlay').classList.add('open');
+}
+
+async function saveAccount() {
+  const name = (document.getElementById('bank-name').value || '').trim();
+  const opening = document.getElementById('bank-opening').value;
+  if (!name) { showToast('Enter an account name'); return; }
+  const btn = document.getElementById('bank-save-btn');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  try {
+    const res = editingAccount
+      ? await api('editAccount', { rowId: editingAccount.rowId, name, opening: opening || 0 })
+      : await api('addAccount',  { name, opening: opening || 0 });
+    if (res.success) {
+      showToast(editingAccount ? 'Account updated' : 'Account added');
+      closeOverlay('bank-overlay');
+      clearCache();
+      await refreshFromAPI();
+      renderAccountsPage();
+      populateAccountSelects();
+    } else { showToast(res.error || 'Failed'); }
+  } catch(e) { showToast('Connection error'); }
+  btn.textContent = 'Save'; btn.disabled = false;
+}
+
+function deleteAccountConfirm() {
+  if (!editingAccount) return;
+  const a = editingAccount;
+  showConfirm(
+    `Delete "${a.name}"?\n\nTransactions are kept — they just become unassigned.`,
+    async () => {
+      const res = await api('deleteAccount', { rowId: a.rowId });
+      if (res.success) {
+        showToast('Account deleted');
+        closeOverlay('bank-overlay');
+        clearCache();
+        await refreshFromAPI();
+        renderAccountsPage();
+        populateAccountSelects();
+      } else { showToast(res.error || 'Failed'); }
+    }, 'Delete');
+}
+
+// Fills the account dropdowns on the add / edit entry forms
+function populateAccountSelects() {
+  const list = accountsList();
+  ['add-exp-account','add-inc-account','edit-account'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— No account —</option>' +
+      list.map(a => `<option value="${esc(a.name)}">${esc(a.name)}</option>`).join('');
+    if (prev) sel.value = prev;
+  });
+  // Hide the field entirely until at least one account exists
+  document.querySelectorAll('.account-field').forEach(el => {
+    el.style.display = list.length ? 'block' : 'none';
+  });
+  const chip = document.getElementById('chip-ana-account');
+  if (chip) chip.parentElement.style.display = list.length ? 'flex' : 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
 // ANALYTICS — bucketed bars, net chart, calendar
 // ══════════════════════════════════════════════════════════════
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -3217,11 +3390,16 @@ const ANA_PERIODS = [
 const BUCKET_COUNT = 6;
 
 let anaPeriod   = 'monthly';
-let anaSelected = BUCKET_COUNT - 1;   // index of the highlighted bucket
-let anaOffset   = 0;                  // how many periods back the window is scrolled
 let netUnit     = 'cur';              // 'cur' | 'pct'
 let anaCalDay   = null;               // selected calendar day
 let calRef      = null;               // {y,m} month the calendar is showing
+let anaAccount  = null;               // null = all accounts
+
+// Each card scrolls and selects on its own — swiping one never moves the others.
+const anaView = {
+  flow: { offset: 0, selected: BUCKET_COUNT - 1 },   // income vs expenses
+  net:  { offset: 0, selected: BUCKET_COUNT - 1 }    // income left
+};
 
 function openAnaPeriodSheet() {
   document.getElementById('anaperiod-opts').innerHTML = ANA_PERIODS
@@ -3230,11 +3408,11 @@ function openAnaPeriodSheet() {
 }
 
 function setAnaPeriod(p) {
-  anaPeriod   = p;
-  anaSelected = BUCKET_COUNT - 1;
-  anaOffset   = 0;
-  anaCalDay   = null;
-  calRef      = null;
+  anaPeriod = p;
+  anaView.flow = { offset: 0, selected: BUCKET_COUNT - 1 };
+  anaView.net  = { offset: 0, selected: BUCKET_COUNT - 1 };
+  anaCalDay = null;
+  calRef    = null;
   document.getElementById('chip-ana-period').textContent =
     ANA_PERIODS.find(x => x.id === p).label;
   renderAnalytics();
@@ -3248,30 +3426,26 @@ function setNetUnit(u) {
   renderAnalytics();
 }
 
-function selectBucket(i) {
-  anaSelected = i;
-  anaCalDay   = null;
-  calRef      = null;         // let the calendar follow the newly selected bucket
+function selectBucket(which, i) {
+  anaView[which].selected = i;
   renderAnalytics();
 }
 
 // ── SWIPING ──
 // Swipe right on either chart to walk backwards through time, left to come
 // forward. The calendar swipes month by month independently.
-function shiftAnaWindow(dir) {          // dir: +1 = older, -1 = newer
-  const next = anaOffset + dir;
+function shiftAnaWindow(which, dir) {   // dir: +1 = older, -1 = newer
+  const v = anaView[which];
+  const next = v.offset + dir;
   if (next < 0) { showToast('Already at the latest period'); return; }
-  anaOffset = next;
-  anaCalDay = null;
-  calRef    = null;
+  v.offset = next;
   renderAnalytics();
-  slideHint('ana-plot', dir);
-  slideHint('ana-net-plot', dir);
+  slideHint(which === 'flow' ? 'ana-plot' : 'ana-net-plot', dir);
   buzz(8);
 }
 
 function shiftCalendar(dir) {           // dir: +1 = previous month, -1 = next
-  const base = calRef || calRefFromBucket(anaBuckets()[anaSelected]);
+  const base = calRef || calRefFromBucket(null);
   const d = new Date(base.y, base.m - dir, 1);
   const now = new Date();
   if (d.getFullYear() > now.getFullYear() ||
@@ -3316,17 +3490,17 @@ function attachSwipe(id, onSwipe) {
 }
 
 function initAnaSwipes() {
-  attachSwipe('ana-plot',     d => shiftAnaWindow(d));
-  attachSwipe('ana-net-plot', d => shiftAnaWindow(d));
+  attachSwipe('ana-plot',     d => shiftAnaWindow('flow', d));
+  attachSwipe('ana-net-plot', d => shiftAnaWindow('net',  d));
   attachSwipe('ana-calendar', d => shiftCalendar(d));
 }
 
 // Builds the last N buckets for whichever granularity is active
-function anaBuckets() {
+function anaBuckets(offset = 0) {
   const now = new Date();
   const out = [];
   for (let k = BUCKET_COUNT - 1; k >= 0; k--) {
-    const i = k + anaOffset;            // how many periods back this bucket sits
+    const i = k + offset;               // how many periods back this bucket sits
     let from, to, label, sub = '';
     if (anaPeriod === 'weekly') {
       const day = (now.getDay() + 6) % 7;
@@ -3360,8 +3534,8 @@ function anaBuckets() {
     const b = out.find(x => ts >= x.from && ts <= x.to);
     if (b) b[key] += Number(r[field] || 0);
   });
-  add(appData.income,   'income',  'Income Amount');
-  add(appData.expenses, 'expense', 'Expense Amount');
+  add(accountRows(appData.income),   'income',  'Income Amount');
+  add(accountRows(appData.expenses), 'expense', 'Expense Amount');
 
   // Only show the year suffix when the range actually crosses a year
   const years = new Set(out.map(b => b.date.getFullYear()));
@@ -3370,51 +3544,57 @@ function anaBuckets() {
 }
 
 function renderAnalytics() {
-  const buckets = anaBuckets();
-  if (anaSelected > buckets.length - 1) anaSelected = buckets.length - 1;
-  const sel = buckets[anaSelected];
-
-  document.getElementById('ana-inc-total').textContent = fmt(sel.income);
-  document.getElementById('ana-exp-total').textContent = fmt(sel.expense);
-
-  // ── Income vs expenses ──
-  const max = Math.max(...buckets.map(b => Math.max(b.income, b.expense)), 0);
-  document.getElementById('ana-plot').innerHTML = plotHTML(buckets, max, b => [
+  // ── Card 1: income vs expenses ──
+  const fBuckets = anaBuckets(anaView.flow.offset);
+  const fSel = fBuckets[anaView.flow.selected] || fBuckets[fBuckets.length - 1];
+  document.getElementById('ana-inc-total').textContent = fmt(fSel.income);
+  document.getElementById('ana-exp-total').textContent = fmt(fSel.expense);
+  const fMax = Math.max(...fBuckets.map(b => Math.max(b.income, b.expense)), 0);
+  document.getElementById('ana-plot').innerHTML = plotHTML('flow', fBuckets, fMax, b => [
     { cls:'green', v:b.income },
     { cls:'blue',  v:b.expense }
   ]);
 
-  // ── Income left ──
-  const net = sel.income - sel.expense;
-  const netPct = sel.income > 0 ? Math.round(net / sel.income * 100) : 0;
+  // ── Card 2: income left ──
+  const nBuckets = anaBuckets(anaView.net.offset);
+  const nSel = nBuckets[anaView.net.selected] || nBuckets[nBuckets.length - 1];
+  const net = nSel.income - nSel.expense;
+  const netPct = nSel.income > 0 ? Math.round(net / nSel.income * 100) : 0;
   const netEl = document.getElementById('ana-net');
   netEl.textContent = netUnit === 'pct'
     ? netPct + '%'
     : (net < 0 ? '-' : '') + fmt(Math.abs(net));
   netEl.className = 'ana-big ' + (net < 0 ? 'red' : net > 0 ? 'green' : '');
+  document.getElementById('ana-net-label').textContent = nSel.label +
+    (nSel.sub ? ' ' + nSel.sub : '');
 
-  const netVals = buckets.map(b => {
-    if (netUnit === 'pct') return b.income > 0 ? (b.income - b.expense) / b.income * 100 : 0;
-    return b.income - b.expense;
-  });
+  const netVals = nBuckets.map(b =>
+    netUnit === 'pct'
+      ? (b.income > 0 ? (b.income - b.expense) / b.income * 100 : 0)
+      : b.income - b.expense);
   const netMax = Math.max(...netVals.map(Math.abs), 0);
   document.getElementById('ana-net-plot').innerHTML =
-    plotHTML(buckets, netMax, (b, i) => [{ cls: netVals[i] < 0 ? 'red' : 'purple', v: Math.abs(netVals[i]) }],
+    plotHTML('net', nBuckets, netMax,
+      (b, i) => [{ cls: netVals[i] < 0 ? 'red' : 'purple', v: Math.abs(netVals[i]) }],
       netUnit === 'pct' ? v => Math.round(v) + '%' : null);
 
-  renderCalendar(sel);
+  // ── Card 3: calendar (independent month pointer) ──
+  renderCalendar();
+
+  document.getElementById('chip-ana-account').textContent = anaAccount || 'All accounts';
 }
 
 // One chart renderer for both plots — bars, right-hand axis, tappable labels
-function plotHTML(buckets, max, barsFor, fmtAxis) {
+function plotHTML(which, buckets, max, barsFor, fmtAxis) {
   const axis = fmtAxis || (v => shortAmt(v));
+  const selIdx = anaView[which].selected;
   const cols = buckets.map((b, i) => {
     const bars = barsFor(b, i).map(bar => {
       const pct = max > 0 ? (bar.v / max) * 100 : 0;
       const h = bar.v > 0 ? Math.max(3, pct) : 3;   // zero still shows a stub
       return `<div class="pbar ${bar.cls} ${bar.v > 0 ? '' : 'zero'}" style="height:${h}%"></div>`;
     }).join('');
-    return `<div class="pcol ${i === anaSelected ? 'active' : ''}" onclick="selectBucket(${i})">
+    return `<div class="pcol ${i === selIdx ? 'active' : ''}" onclick="selectBucket('${which}',${i})">
       <div class="pcol-bars">${bars}</div>
       <div class="pcol-label">${b.label}${b.sub ? `<span class="pcol-sub">${b.sub}</span>` : ''}</div>
     </div>`;
@@ -3444,7 +3624,7 @@ function renderCalendar(bucket) {
   document.getElementById('ana-cal-month').textContent = `${MONTH_ABBR[month]} ${year}`;
 
   const byDay = {};
-  appData.expenses.forEach(r => {
+  accountRows(appData.expenses).forEach(r => {
     const ts = parseSheetDate(r['Date']);
     if (!ts) return;
     const d = new Date(ts);
@@ -3475,10 +3655,10 @@ function openDay(year, month, day) {
   const to   = new Date(year, month, day, 23,59,59,999).getTime();
 
   const rows = [
-    ...appData.expenses.map((r, i) => ({ ...r, _type:'expense', _amt:Number(r['Expense Amount']||0),
+    ...accountRows(appData.expenses).map((r, i) => ({ ...r, _type:'expense', _amt:Number(r['Expense Amount']||0),
       _date:r['Date'], _cat:r['Category'], _desc:r['Description'], _pm:r['Payment Mode'],
       _rowIndex:r._rowIndex, _sortKey:sortKey(r, i) })),
-    ...appData.income.map((r, i) => ({ ...r, _type:'income', _amt:Number(r['Income Amount']||0),
+    ...accountRows(appData.income).map((r, i) => ({ ...r, _type:'income', _amt:Number(r['Income Amount']||0),
       _date:r['Date'], _cat:r['Category'], _desc:r['Description'], _pm:r['Payment Mode'],
       _rowIndex:r._rowIndex, _sortKey:sortKey(r, i) }))
   ].filter(r => { const ts = parseSheetDate(r._date); return ts >= from && ts <= to; })
