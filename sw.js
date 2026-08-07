@@ -10,7 +10,7 @@
 // an actively-developed app. Icons/images still use cache-first since they
 // almost never change.
 
-const CACHE_NAME = 'wallet-v17'; // bump this on every sw.js change to force clients to update
+const CACHE_NAME = 'wallet-v18'; // bump this on every sw.js change to force clients to update
 const BASE = '/';
 
 const SHELL_FILES = [
@@ -74,16 +74,24 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Everything else (HTML/JS/CSS/manifest): network-first, cache is just the offline fallback
+  // Everything else (HTML/JS/CSS/manifest): stale-while-revalidate.
+  // The cached copy is served straight away so the app paints without waiting
+  // on the network — this is what keeps the launch splash short. A fresh copy
+  // is fetched in the background and used on the next launch.
+  if (e.request.method !== 'GET') return;
+
   e.respondWith(
-    fetch(e.request).then(response => {
-      if (response && response.status === 200 && e.request.method === 'GET') {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-      }
-      return response;
-    }).catch(() =>
-      caches.match(e.request).then(cached => cached || (e.request.mode === 'navigate' ? caches.match(BASE + 'index.html') : undefined))
-    )
+    caches.match(e.request).then(cached => {
+      const network = fetch(e.request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        }
+        return response;
+      }).catch(() =>
+        cached || (e.request.mode === 'navigate' ? caches.match(BASE + 'index.html') : undefined)
+      );
+      return cached || network;
+    })
   );
 });
