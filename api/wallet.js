@@ -175,6 +175,8 @@ function buildLoanSummary(loanRows) {
     summary.push({
       loanId,
       person: origin['Description'] || 'Unknown',
+      // Shown as the loan's title in the UI, falling back to the person's name
+      remarks: String(origin['Remarks'] || '').trim(),
       type,
       total,
       pending: total - paid,
