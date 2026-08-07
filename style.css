@@ -1046,3 +1046,10 @@ body.no-scroll{overflow:hidden;}
 @keyframes slideFromRight{from{opacity:0;transform:translateX(26px);}to{opacity:1;transform:none;}}
 .swipe-note{font-size:11px;color:var(--text3);text-align:center;margin:-4px 0 14px;
   letter-spacing:.2px;}
+
+/* Bank accounts */
+.bank-total{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 18px;margin:-6px 0 16px;border-radius:16px;
+  background:var(--surface2);border:1px solid var(--border);
+  font-size:13px;font-weight:600;color:var(--text2);}
+.bank-total span:last-child{font-size:18px;font-weight:800;color:var(--text);}
