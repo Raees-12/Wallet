@@ -3326,8 +3326,10 @@ async function saveAccount() {
   btn.textContent = 'Saving...'; btn.disabled = true;
   try {
     const res = editingAccount
-      ? await api('editAccount', { rowId: editingAccount.rowId, name, opening: opening || 0 })
-      : await api('addAccount',  { name, opening: opening || 0 });
+      ? await api({ action:'editAccount', userId: currentUser.id,
+                    rowId: editingAccount.rowId, name, opening: opening || 0 })
+      : await api({ action:'addAccount',  userId: currentUser.id,
+                    name, opening: opening || 0 });
     if (res.success) {
       showToast(editingAccount ? 'Account updated' : 'Account added');
       closeOverlay('bank-overlay');
@@ -3346,7 +3348,7 @@ function deleteAccountConfirm() {
   showConfirm(
     `Delete "${a.name}"?\n\nTransactions are kept — they just become unassigned.`,
     async () => {
-      const res = await api('deleteAccount', { rowId: a.rowId });
+      const res = await api({ action:'deleteAccount', userId: currentUser.id, rowId: a.rowId });
       if (res.success) {
         showToast('Account deleted');
         closeOverlay('bank-overlay');
