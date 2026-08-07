@@ -2941,9 +2941,6 @@ function renderSummary() {
 
   const selected = summarySel ? groups.find(g => g.cat === summarySel) : null;
   document.getElementById('summary-total').textContent  = fmt(selected ? selected.amt : total);
-  document.getElementById('summary-count').textContent  = selected
-    ? selected.count + (selected.count === 1 ? ' entry' : ' entries')
-    : rows.length + (rows.length === 1 ? ' entry' : ' entries');
 
   const periodEl = document.getElementById('summary-period');
   periodEl.textContent = selected ? selected.cat : summaryPeriodLabel();
@@ -2965,21 +2962,28 @@ function renderSummary() {
     el.innerHTML = emptyState(isExp ? 'No expenses' : 'No income', 'Nothing recorded for this period');
     return;
   }
-  el.innerHTML = groups.map((g, i) => {
-    const pctRaw = total > 0 ? (g.amt / total * 100) : 0;
-    const pct = pctRaw >= 10 ? pctRaw.toFixed(1) : pctRaw.toFixed(2);
-    const on  = summarySel === g.cat;
+  // One card holding every row, divided by hairlines
+  el.innerHTML = `<div class="sum-list">` + groups.map((g, i) => {
+    const on = summarySel === g.cat;
     return `<div class="sum-row ${on ? 'sel' : ''} ${summarySel && !on ? 'dim' : ''}"
         style="animation-delay:${Math.min(i,8) * 35}ms"
         onclick="tapCategory('${esc(g.cat).replace(/'/g,"\\'")}')">
       <div class="sum-icon" style="border-color:${catColor(g.cat)};color:${catColor(g.cat)}">
         ${esc(g.cat.charAt(0).toUpperCase())}
       </div>
-      <div class="sum-name">${esc(g.cat)}<span class="sum-count">${g.count}</span></div>
+      <div class="sum-name">${esc(g.cat)}</div>
+      <div class="sum-count">${g.count}</div>
       <div class="sum-amt">${fmt(g.amt)}</div>
-      <div class="sum-pct">${pct}%</div>
+      <div class="sum-pct">${pctLabel(g.amt, total)}</div>
     </div>`;
-  }).join('');
+  }).join('') + `</div>`;
+}
+
+// 50% rather than 50.0%, but 52.63% keeps its precision
+function pctLabel(amt, total) {
+  if (!total) return '0%';
+  const v = amt / total * 100;
+  return (Math.round(v * 100) / 100) + '%';
 }
 
 // First tap highlights the slice, second tap opens the entries
@@ -3002,11 +3006,12 @@ function clearCategorySel() {
 function drawDonut(groups, total) {
   const svg = document.getElementById('summary-donut');
   if (!svg) return;
-  const R = 78, CX = 100, CY = 100, C = 2 * Math.PI * R;
+  const R = 88, CX = 100, CY = 100, C = 2 * Math.PI * R;
+  const W = 9;                    // thin band, matching the reference proportions
 
   if (!total || !groups.length) {
     svg.innerHTML = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
-      stroke="var(--border)" stroke-width="20"/>`;
+      stroke="var(--border)" stroke-width="${W}"/>`;
     return;
   }
 
@@ -3022,8 +3027,8 @@ function drawDonut(groups, total) {
   }
 
   const n    = slices.length;
-  const GAP  = n > 1 ? Math.max(3, 10 - n * 0.7) : 0;   // tighter gaps as slices multiply
-  const MINL = 5;                                        // never let a slice vanish
+  const GAP  = n > 1 ? Math.max(3, 9 - n * 0.6) : 0;    // tighter gaps as slices multiply
+  const MINL = 4;                                        // never let a slice vanish
   const usable = C - GAP * n;
 
   // Scale raw shares into the usable arc, then lift any sliver up to MINL
@@ -3042,7 +3047,7 @@ function drawDonut(groups, total) {
     const dim   = summarySel && g.cat !== summarySel;
     const color = g._other ? 'var(--text3)' : catColor(g.cat);
     const el = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
-      stroke="${color}" stroke-width="${summarySel === g.cat ? 23 : 20}" stroke-linecap="round"
+      stroke="${color}" stroke-width="${summarySel === g.cat ? W + 4 : W}" stroke-linecap="round"
       opacity="${dim ? .2 : 1}"
       stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}"
       transform="rotate(-90 ${CX} ${CY})"
