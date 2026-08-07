@@ -75,7 +75,7 @@
     <div class="topbar-right">
       <span class="topbar-greeting" id="topbar-greeting"></span>
       <div class="avatar-btn" id="topbar-avatar"
-        title="Tap for profile · Double-tap to switch · Hold to choose">R</div>
+        title="Tap to switch account · Double-tap for the next one">R</div>
     </div>
   </div>
 
@@ -86,7 +86,7 @@
       <div class="home-head">
         <div class="hh-left">
           <div class="hero-avatar" id="hero-avatar"
-            title="Tap for profile · Double-tap to switch · Hold to choose">T</div>
+            title="Tap to switch account · Double-tap for the next one">T</div>
           <div class="hh-text">
             <div class="hh-greet" id="hh-greet">Hi there!</div>
             <div class="hh-date" id="hh-date"></div>
@@ -863,13 +863,17 @@
 
 </div>
 
-<!-- NOTIFICATIONS SHEET -->
-<div class="overlay" id="notif-overlay" onclick="closeOverlay('notif-overlay',event)">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="notif-head">
-      <div class="sheet-title" style="margin:0">Notifications</div>
-      <button class="notif-clear" onclick="markNotificationsRead()">Mark all read</button>
+<!-- NOTIFICATIONS — FULL PAGE -->
+<div id="notif-screen" class="fullpage">
+  <div class="spage-scroll">
+    <div class="spage-head">
+      <button class="spage-back" onclick="closeNotifications()" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="notif-head">
+        <h1 class="spage-title">Notifications</h1>
+        <button class="notif-clear" onclick="markNotificationsRead()">Mark all read</button>
+      </div>
     </div>
     <div id="notif-list"></div>
   </div>
