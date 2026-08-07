@@ -83,17 +83,6 @@
 
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
-      <div class="dash-filter-bar" id="dash-filter-bar">
-        <div class="dash-chip" data-type="today" onclick="setDashFilter(this)">Today</div>
-        <div class="dash-chip" data-type="week" onclick="setDashFilter(this)">This Week</div>
-        <div class="dash-chip active" data-type="month" onclick="setDashFilter(this)">This Month</div>
-        <div class="dash-chip" data-type="range" onclick="setDashFilter(this)">Custom</div>
-      </div>
-      <div class="dash-range-row" id="dash-range-row">
-        <input type="date" id="dash-from">
-        <input type="date" id="dash-to">
-        <button class="btn btn-primary btn-sm" onclick="applyDashRange()">Go</button>
-      </div>
       <div class="balance-card">
         <div class="balance-label" id="dash-period-label">This Month</div>
         <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
