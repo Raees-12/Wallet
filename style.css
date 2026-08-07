@@ -38,7 +38,7 @@
   --radius:16px;--radius-sm:10px;--nav-h:68px;--header-h:60px;
 }
 html,body{height:100%;width:100%;background:var(--bg);color:var(--text);
-  font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;overflow:hidden;
+  font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:15px;overflow:hidden;
   -webkit-font-smoothing:antialiased;}
 #app{height:100dvh;display:flex;flex-direction:column;overflow:hidden;position:relative;}
 
@@ -63,7 +63,7 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--text);
   text-transform:uppercase;margin-bottom:6px;}
 input,select,textarea{background:var(--input-bg);border:1.5px solid var(--border);
   border-radius:var(--radius-sm);color:var(--text);
-  font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;
+  font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:15px;
   padding:13px 14px;outline:none;width:100%;transition:border-color .15s,box-shadow .15s;
   -webkit-appearance:none;appearance:none;}
 input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(var(--blue-rgb),.12);}
@@ -72,7 +72,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
 select option{background:var(--surface);color:var(--text);}
 .btn{border:none;border-radius:var(--radius-sm);
-  font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;
+  font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;font-weight:700;
   padding:14px 20px;cursor:pointer;width:100%;
   transition:opacity .15s,transform .1s,box-shadow .15s;
   display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.2px;}
