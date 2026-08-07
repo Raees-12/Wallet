@@ -355,15 +355,14 @@ function quickAdd(type) {
 }
 
 // ── AVATAR GESTURES ──
-// Tap        → Profile
-// Double-tap → jump straight to the next account (no picker)
-// Hold       → open the account picker
+// Settings has its own button in the header now, so the avatar is purely
+// about identity:
+//   Tap        → open the account picker
+//   Double-tap → jump straight to the next account
 let _tapTimer       = null;
-let _longPressTimer = null;
 let _longPressFired = false;
 let _pointerMoved   = false;
 let _pointerStart   = null;
-const LONG_PRESS_MS = 500;
 const DOUBLE_TAP_MS = 280;
 
 function initAvatarGestures(id) {
@@ -379,13 +378,6 @@ function initAvatarGestures(id) {
     _longPressFired = false;
     _pointerMoved   = false;
     _pointerStart   = { x: e.clientX, y: e.clientY };
-    clearTimeout(_longPressTimer);
-    _longPressTimer = setTimeout(() => {
-      _longPressFired = true;
-      clearTimeout(_tapTimer); _tapTimer = null;
-      buzz(15);
-      openAccountSwitcher();
-    }, LONG_PRESS_MS);
   });
 
   // A drag/scroll shouldn't count as a press
@@ -393,12 +385,8 @@ function initAvatarGestures(id) {
     if (!_pointerStart) return;
     if (Math.abs(e.clientX - _pointerStart.x) > 10 || Math.abs(e.clientY - _pointerStart.y) > 10) {
       _pointerMoved = true;
-      clearTimeout(_longPressTimer);
     }
   });
-
-  ['pointerup','pointercancel','pointerleave'].forEach(ev =>
-    av.addEventListener(ev, () => clearTimeout(_longPressTimer)));
 
   av.addEventListener('click', e => {
     e.preventDefault();
@@ -417,7 +405,7 @@ function handleAvatarTap() {
   }
   _tapTimer = setTimeout(() => {
     _tapTimer = null;
-    openProfile();
+    openAccountSwitcher();
   }, DOUBLE_TAP_MS);
 }
 
@@ -504,7 +492,7 @@ function resetAppState() {
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
    'entry-detail-overlay','add-overlay','emi-add-overlay','cat-entries-overlay',
    'datepick-overlay','type-overlay','period-overlay','catfilter-overlay',
-   'anaperiod-overlay','day-overlay','notif-overlay','budget-overlay'].forEach(id => {
+   'anaperiod-overlay','day-overlay','budget-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   const out = document.getElementById('report-output');
@@ -2022,8 +2010,6 @@ const APP_VERSION = '1.2.0';
 let _settingsOpen  = false;
 let settingsStack  = [];   // e.g. ['main','categories']
 
-function openProfile() { openSettings(); }   // avatar single-tap entry point
-
 function openSettings() {
   settingsStack = ['main'];
   showSPage('main');
@@ -2084,6 +2070,13 @@ function closeSettings() {
 }
 
 window.addEventListener('popstate', () => {
+  // Notifications sits on its own history entry, above Settings
+  if (_notifOpen) {
+    _notifOpen = false;
+    document.getElementById('notif-screen').classList.remove('open');
+    if (!_settingsOpen) document.body.classList.remove('no-scroll');
+    return;
+  }
   if (!_settingsOpen) return;
   if (popSettingsPage()) return;
   _settingsOpen = false;
@@ -2971,6 +2964,7 @@ function buildNotifications() {
 }
 
 let _notifCache = [];
+let _notifOpen  = false;
 
 function refreshNotifications() {
   _notifCache = buildNotifications();
@@ -2988,6 +2982,14 @@ const NOTIF_ICONS = {
 
 function openNotifications() {
   refreshNotifications();
+  renderNotifList();
+  document.getElementById('notif-screen').classList.add('open');
+  document.body.classList.add('no-scroll');
+  _notifOpen = true;
+  try { history.pushState({ walletNotif: true }, ''); } catch(e) {}
+}
+
+function renderNotifList() {
   const read = readNotifIds();
   const el = document.getElementById('notif-list');
   if (!_notifCache.length) {
@@ -3008,7 +3010,14 @@ function openNotifications() {
         </div>
       </div>`).join('');
   }
-  document.getElementById('notif-overlay').classList.add('open');
+}
+
+function closeNotifications() {
+  if (!_notifOpen) return;
+  _notifOpen = false;
+  document.getElementById('notif-screen').classList.remove('open');
+  document.body.classList.remove('no-scroll');
+  try { if (history.state && history.state.walletNotif) history.back(); } catch(e) {}
 }
 
 function tapNotification(i) {
@@ -3017,7 +3026,7 @@ function tapNotification(i) {
   const read = readNotifIds();
   read.add(n.id);
   saveNotifIds(read);
-  closeOverlay('notif-overlay');
+  closeNotifications();
   refreshNotifications();
   if (n.action) n.action();
 }
@@ -3027,7 +3036,7 @@ function markNotificationsRead() {
   _notifCache.forEach(n => read.add(n.id));
   saveNotifIds(read);
   refreshNotifications();
-  openNotifications();
+  renderNotifList();          // repaint in place — don't push another history entry
   showToast('All caught up');
 }
 
@@ -3505,6 +3514,9 @@ function openCatEntries(cat) {
 // A blank value means the entry predates accounts, or wasn't assigned.
 // ══════════════════════════════════════════════════════════════
 const UNASSIGNED = '__none__';
+// Entries with no account set fall into this bucket. The stored value stays
+// empty — this is only what the user sees.
+const UNASSIGNED_LABEL = 'Main account';
 
 function accountsList() { return appData.accounts || []; }
 function hasAccounts()  { return accountsList().length > 0; }
@@ -3532,7 +3544,7 @@ function accountBalance(name) {
 function openAnaAccountSheet() {
   const opts = [{ id:'', label:'All accounts', note:'Default' }]
     .concat(accountsList().map(a => ({ id:a.name, label:a.name })))
-    .concat([{ id:UNASSIGNED, label:'Unassigned' }]);
+    .concat([{ id:UNASSIGNED, label:UNASSIGNED_LABEL }]);
   document.getElementById('anaacct-opts').innerHTML = opts
     .map(o => optRow(o, (anaAccount || '') === o.id, `setAnaAccount('${esc(o.id).replace(/'/g,"\\'")}')`))
     .join('');
@@ -3551,7 +3563,7 @@ function setAnaAccount(id) {
 // Label used by both account chips
 function accountChipLabel() {
   if (!anaAccount) return 'All accounts';
-  if (anaAccount === UNASSIGNED) return 'Unassigned';
+  if (anaAccount === UNASSIGNED) return UNASSIGNED_LABEL;
   return anaAccount;
 }
 
