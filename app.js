@@ -740,6 +740,7 @@ async function refreshFromAPI() {
     appData.config      = res.config      || {};
     appData.emis        = res.emis        || [];
     appData.emiPayments = res.emiPayments || [];
+    appData.accounts    = res.accounts    || [];
 
     saveCachedData(appData);
     syncConfigStateFromServer();
@@ -763,6 +764,7 @@ function saveCachedData(data) {
       loanSummary: data.loanSummary,
       emis: data.emis,
       emiPayments: data.emiPayments,
+      accounts: data.accounts,
       config: data.config,
       cachedAt: Date.now()
     };
@@ -2912,6 +2914,10 @@ function summaryRows() {
       const ts = parseSheetDate(r._date);
       if (ts < from || ts > to) return false;
       if (summaryCats && !summaryCats.has(r._cat)) return false;
+      if (anaAccount) {
+        const acct = String(r['Account'] || '').trim();
+        if (anaAccount === UNASSIGNED ? acct : acct !== anaAccount) return false;
+      }
       return true;
     })
     .sort((a, b) => b._sortKey - a._sortKey);
@@ -2949,6 +2955,8 @@ function renderSummary() {
     !summaryCats ? 'All categories'
     : summaryCats.size === 1 ? [...summaryCats][0]
     : `${summaryCats.size} categories`;
+  const sumAcctChip = document.getElementById('chip-sum-account');
+  if (sumAcctChip) sumAcctChip.textContent = accountChipLabel();
 
   drawDonut(groups, total);
 
@@ -3260,8 +3268,17 @@ function openAnaAccountSheet() {
 
 function setAnaAccount(id) {
   anaAccount = id || null;
+  summarySel = null;
+  renderSummary();
   renderAnalytics();
   closeOverlay('anaacct-overlay');
+}
+
+// Label used by both account chips
+function accountChipLabel() {
+  if (!anaAccount) return 'All accounts';
+  if (anaAccount === UNASSIGNED) return 'Unassigned';
+  return anaAccount;
 }
 
 // ── SETTINGS SUB-PAGE ──
@@ -3287,7 +3304,8 @@ function renderAccountsPage() {
   }
   const total = document.getElementById('bank-total');
   if (list.length) {
-    const t = accountBalance(null);
+    // Sum of the accounts themselves — unassigned transactions are excluded
+    const t = list.reduce((s, a) => s + accountBalance(a.name), 0);
     total.style.display = 'block';
     total.innerHTML = `<span>Combined balance</span>
       <span style="color:${t < 0 ? 'var(--red)' : 'var(--text)'}">${fmt(t)}</span>`;
@@ -3375,8 +3393,10 @@ function populateAccountSelects() {
   document.querySelectorAll('.account-field').forEach(el => {
     el.style.display = list.length ? 'block' : 'none';
   });
-  const chip = document.getElementById('chip-ana-account');
-  if (chip) chip.parentElement.style.display = list.length ? 'flex' : 'none';
+  ['chip-ana-account','chip-sum-account'].forEach(id => {
+    const chip = document.getElementById(id);
+    if (chip) chip.parentElement.style.display = list.length ? 'flex' : 'none';
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3395,7 +3415,7 @@ let anaPeriod   = 'monthly';
 let netUnit     = 'cur';              // 'cur' | 'pct'
 let anaCalDay   = null;               // selected calendar day
 let calRef      = null;               // {y,m} month the calendar is showing
-let anaAccount  = null;               // null = all accounts
+let anaAccount  = null;               // null = all accounts (shared by Summary + Analytics)
 
 // Each card scrolls and selects on its own — swiping one never moves the others.
 const anaView = {
@@ -3583,7 +3603,7 @@ function renderAnalytics() {
   // ── Card 3: calendar (independent month pointer) ──
   renderCalendar();
 
-  document.getElementById('chip-ana-account').textContent = anaAccount || 'All accounts';
+  document.getElementById('chip-ana-account').textContent = accountChipLabel();
 }
 
 // One chart renderer for both plots — bars, right-hand axis, tappable labels
