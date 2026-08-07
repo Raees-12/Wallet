@@ -504,7 +504,7 @@ function resetAppState() {
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
    'entry-detail-overlay','add-overlay','emi-add-overlay','cat-entries-overlay',
    'datepick-overlay','type-overlay','period-overlay','catfilter-overlay',
-   'anaperiod-overlay','day-overlay'].forEach(id => {
+   'anaperiod-overlay','day-overlay','notif-overlay','budget-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   const out = document.getElementById('report-output');
@@ -2131,6 +2131,8 @@ function renderSettings() {
   document.getElementById('settings-logout-all-row').style.display = accounts.length > 1 ? 'flex' : 'none';
   document.getElementById('settings-install-row').style.display = window._installPrompt ? 'flex' : 'none';
 
+  const bv = document.getElementById('settings-budget-value');
+  if (bv) bv.textContent = prefs.budget ? fmt(prefs.budget) : 'Not set';
   document.getElementById('pref-hide-balance').checked = !!prefs.hideBalance;
   document.getElementById('pref-decimals').checked     = !!prefs.decimals;
   document.getElementById('pref-haptics').checked      = !!prefs.haptics;
@@ -2462,7 +2464,7 @@ async function copyFeedback() {
 // PREFERENCES
 // ══════════════════════════════════════════════════════════════
 const PREFS_KEY = 'wallet_prefs_v1';
-let prefs = { hideBalance: true, decimals: false, haptics: true };
+let prefs = { hideBalance: true, decimals: false, haptics: true, budget: 0 };
 
 function loadPrefs() {
   try {
@@ -2713,35 +2715,320 @@ function populateCategorySelects() {
   populateEMICatSelect();
 }
 
-// ── DASHBOARD FILTER ──
 
-// Compares this month's net against last month's and renders the pill under
-// the balance. Percentages are meaningless when last month was zero, so we
-// fall back to a plain label instead of showing an infinite jump.
-function renderTrend(balance) {
-  const el = document.getElementById('hero-trend');
-  if (!el) return;
-  if (balanceHidden) { el.innerHTML = '<span class="trend-pill flat">Hidden</span>'; return; }
-
+// ── RENDER DASHBOARD ──
+function renderDashboard() {
   const now = new Date();
-  const pf = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
-  const pt = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999).getTime();
-  const within = r => { const ts = parseSheetDate(r['Date']); return ts >= pf && ts <= pt; };
-  const prev =
-    appData.income.filter(within).reduce((s,r) => s + Number(r['Income Amount']||0), 0) -
-    appData.expenses.filter(within).reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
+  const from = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const to   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23,59,59,999).getTime();
 
-  if (!prev) {
-    el.innerHTML = `<span class="trend-pill flat">This month</span>`;
+  // Previous month, for the little delta chips
+  const pFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+  const pTo   = new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999).getTime();
+
+  const inRange = (r, a, b) => { const ts = parseSheetDate(r['Date']); return ts >= a && ts <= b; };
+  const acct = r => {
+    if (!anaAccount) return true;
+    const a = String(r['Account'] || '').trim();
+    return anaAccount === UNASSIGNED ? !a : a === anaAccount;
+  };
+
+  const expenses = appData.expenses.filter(r => acct(r) && inRange(r, from, to));
+  const income   = appData.income.filter(r   => acct(r) && inRange(r, from, to));
+  const pExp = appData.expenses.filter(r => acct(r) && inRange(r, pFrom, pTo))
+    .reduce((s, r) => s + Number(r['Expense Amount'] || 0), 0);
+  const pInc = appData.income.filter(r => acct(r) && inRange(r, pFrom, pTo))
+    .reduce((s, r) => s + Number(r['Income Amount'] || 0), 0);
+
+  const totalExp = expenses.reduce((s, r) => s + Number(r['Expense Amount'] || 0), 0);
+  const totalInc = income.reduce((s, r)   => s + Number(r['Income Amount']   || 0), 0);
+
+  // Total balance = all time, plus any account opening balances
+  const allExp = appData.expenses.filter(acct).reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
+  const allInc = appData.income.filter(acct).reduce((s,r) => s + Number(r['Income Amount']||0), 0);
+  const opening = !anaAccount
+    ? accountsList().reduce((s,a) => s + Number(a.opening||0), 0)
+    : anaAccount === UNASSIGNED ? 0
+    : Number((accountsList().find(a => a.name === anaAccount) || {}).opening || 0);
+  const balance = opening + allInc - allExp;
+
+  const loanSummary = appData.loanSummary || [];
+  const toReceive = loanSummary.filter(l => /lent/i.test(l.type)).reduce((s, l) => s + Number(l.pending || 0), 0);
+  const toOwe     = loanSummary.filter(l => /borrow/i.test(l.type)).reduce((s, l) => s + Number(l.pending || 0), 0);
+
+  document.getElementById('dash-balance').innerHTML  = fmtBalance(balance);
+  document.getElementById('dash-income').textContent  = fmtMini(totalInc);
+  document.getElementById('dash-expense').textContent = fmtMini(totalExp);
+  document.getElementById('dash-receive').textContent = fmt(toReceive);
+  document.getElementById('dash-owe').textContent     = fmt(toOwe);
+  document.getElementById('bc-account').textContent   = accountChipLabel();
+  setDelta('inc-delta', totalInc, pInc, true);
+  setDelta('exp-delta', totalExp, pExp, false);
+  updateEyeIcon();
+
+  // Greeting + today's date
+  const greet = document.getElementById('hh-greet');
+  if (greet && currentUser) greet.textContent = 'Hi, ' + currentUser.username + '!';
+  const dateEl = document.getElementById('hh-date');
+  if (dateEl) {
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['January','February','March','April','May','June','July',
+                    'August','September','October','November','December'];
+    dateEl.textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }
+
+  renderBudget(totalExp);
+  renderUpcomingEMIs();
+  refreshNotifications();
+
+  const allTxns = [
+    ...expenses.map((r, i) => ({ ...r, _type: 'expense', _amt: Number(r['Expense Amount'] || 0), _date: r['Date'], _cat: r['Category'], _desc: r['Description'], _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) })),
+    ...income.map((r, i)   => ({ ...r, _type: 'income',  _amt: Number(r['Income Amount']   || 0), _date: r['Date'], _cat: r['Category'], _desc: r['Description'], _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) }))
+  ].sort((a, b) => b._sortKey - a._sortKey).slice(0, 8);
+
+  const recentEl = document.getElementById('dash-recent');
+  recentEl.innerHTML = allTxns.length
+    ? allTxns.map(r => entryItemHTML(r)).join('')
+    : emptyState('No transactions', 'Add your first entry using the + button');
+}
+
+// Small ↗5.2% chip next to the monthly figures. `goodUp` flips the colour so a
+// rise in spending reads as bad while a rise in income reads as good.
+function setDelta(id, current, previous, goodUp) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (balanceHidden || !previous) { el.innerHTML = ''; return; }
+  const change = (current - previous) / Math.abs(previous) * 100;
+  if (!isFinite(change)) { el.innerHTML = ''; return; }
+  const up = change >= 0;
+  const good = goodUp ? up : !up;
+  const arrow = up
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="9 7 17 7 17 15"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 9 17 17 9 17"/></svg>';
+  el.className = 'bc-delta ' + (good ? 'good' : 'bad');
+  el.innerHTML = `${arrow}${Math.abs(change).toFixed(1)}%`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// MONTHLY BUDGET
+// ══════════════════════════════════════════════════════════════
+function renderBudget(spent) {
+  const budget = Number(prefs.budget || 0);
+  const pctEl  = document.getElementById('budget-pct');
+  const fill   = document.getElementById('budget-fill');
+  const foot   = document.getElementById('budget-foot');
+  if (!pctEl) return;
+
+  if (!budget) {
+    pctEl.textContent = 'Set';
+    pctEl.className = 'hcard-link';
+    fill.style.width = '0%';
+    foot.textContent = 'Tap to set a monthly budget';
     return;
   }
-  const change = (balance - prev) / Math.abs(prev) * 100;
-  const up = change >= 0;
-  const arrow = up
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="9 7 17 7 17 15"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="7" y1="7" x2="17" y2="17"/><polyline points="17 9 17 17 9 17"/></svg>';
-  el.innerHTML = `<span class="trend-pill ${up ? 'up' : 'down'}">${arrow}
-    ${Math.abs(change).toFixed(2)}% vs last month</span>`;
+  const pct = Math.round(spent / budget * 100);
+  fill.style.width = Math.min(100, pct) + '%';
+  fill.className = 'budget-fill' + (pct >= 100 ? ' over' : pct >= 80 ? ' warn' : '');
+  pctEl.textContent = pct + '%';
+  pctEl.className = 'hcard-link' + (pct >= 100 ? ' over' : pct >= 80 ? ' warn' : '');
+  foot.innerHTML = `Spent <b>${fmt(spent)}</b> / ${fmt(budget)}` +
+    (pct >= 100 ? ` · <span class="over">${fmt(spent - budget)} over</span>` : '');
+}
+
+function openBudgetSheet() {
+  document.getElementById('budget-input').value = prefs.budget || '';
+  document.getElementById('budget-overlay').classList.add('open');
+}
+
+function saveBudget() {
+  const v = document.getElementById('budget-input').value;
+  prefs.budget = v ? Math.max(0, Number(v)) : 0;
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch(e) {}
+  closeOverlay('budget-overlay');
+  showToast(prefs.budget ? 'Budget saved' : 'Budget cleared');
+  renderDashboard();
+}
+
+// ══════════════════════════════════════════════════════════════
+// UPCOMING EMIs — the "upcoming bills" list
+// ══════════════════════════════════════════════════════════════
+function upcomingEMIs(days = 45) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limit = today.getTime() + days * 86400000;
+  return (appData.emis || [])
+    .filter(e => String(e['Status']) !== 'Closed')
+    .map(e => {
+      const ts = parseSheetDate(e['Next Due Date']);
+      return { e, ts, left: Math.round((ts - today.getTime()) / 86400000) };
+    })
+    .filter(x => x.ts && x.ts <= limit)
+    .sort((a, b) => a.ts - b.ts);
+}
+
+function renderUpcomingEMIs() {
+  const el = document.getElementById('upcoming-emis');
+  if (!el) return;
+  const list = upcomingEMIs().slice(0, 4);
+  if (!list.length) {
+    el.innerHTML = `<div class="hcard-empty">Nothing due in the next 45 days</div>`;
+    return;
+  }
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  el.innerHTML = list.map(({ e, ts, left }) => {
+    const d = new Date(ts);
+    const late = left < 0;
+    const soon = left >= 0 && left <= 3;
+    const when = late ? `${Math.abs(left)} days overdue`
+               : left === 0 ? 'Due today'
+               : left === 1 ? '1 day left'
+               : `${left} days left`;
+    return `<div class="bill-row" onclick="switchPage('emis')">
+      <div class="bill-icon ${late ? 'late' : soon ? 'soon' : ''}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="bill-info">
+        <div class="bill-name">${esc(String(e['Description'] || e['Category'] || 'EMI'))}</div>
+        <div class="bill-meta ${late ? 'late' : soon ? 'soon' : ''}">
+          Due ${d.getDate()} ${MON[d.getMonth()]} · ${when}
+        </div>
+      </div>
+      <div class="bill-amt">${fmt(Number(e['EMI Amount'] || 0))}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// Derived from the data itself — EMIs falling due, budget pressure and
+// outstanding loans. Read state is remembered per notification id.
+// ══════════════════════════════════════════════════════════════
+const NOTIF_READ_KEY = 'wallet_notif_read_v1';
+
+function readNotifIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]')); }
+  catch(e) { return new Set(); }
+}
+function saveNotifIds(set) {
+  try { localStorage.setItem(NOTIF_READ_KEY, JSON.stringify([...set])); } catch(e) {}
+}
+
+function buildNotifications() {
+  const out = [];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  upcomingEMIs(7).forEach(({ e, ts, left }) => {
+    const d = new Date(ts);
+    const id = `emi:${e['EMI ID']}:${d.toISOString().slice(0,10)}`;
+    out.push({
+      id,
+      kind: left < 0 ? 'danger' : 'warn',
+      icon: 'calendar',
+      title: left < 0 ? 'EMI overdue' : left === 0 ? 'EMI due today' : `EMI due in ${left} day${left>1?'s':''}`,
+      body: `${String(e['Description'] || e['Category'] || 'EMI')} · ${fmt(Number(e['EMI Amount']||0))} on ${d.getDate()} ${MON[d.getMonth()]}`,
+      action: () => switchPage('emis')
+    });
+  });
+
+  const budget = Number(prefs.budget || 0);
+  if (budget) {
+    const now = new Date();
+    const f = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const t = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999).getTime();
+    const spent = appData.expenses
+      .filter(r => { const ts = parseSheetDate(r['Date']); return ts >= f && ts <= t; })
+      .reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
+    const pct = Math.round(spent / budget * 100);
+    const tag = `${now.getFullYear()}-${now.getMonth()}`;
+    if (pct >= 100) {
+      out.push({ id:`budget:over:${tag}`, kind:'danger', icon:'alert',
+        title:'Budget exceeded',
+        body:`You've spent ${fmt(spent)} of your ${fmt(budget)} budget.`,
+        action: openBudgetSheet });
+    } else if (pct >= 80) {
+      out.push({ id:`budget:80:${tag}`, kind:'warn', icon:'alert',
+        title:'Budget alert',
+        body:`You've spent ${pct}% of your monthly budget.`,
+        action: openBudgetSheet });
+    }
+  }
+
+  const ls = appData.loanSummary || [];
+  const owe = ls.filter(l => /borrow/i.test(l.type)).reduce((s,l) => s + Number(l.pending||0), 0);
+  if (owe > 0) {
+    out.push({ id:`loans:owe:${Math.round(owe)}`, kind:'info', icon:'users',
+      title:'Money to pay back',
+      body:`${fmt(owe)} still outstanding across your borrowings.`,
+      action: () => switchPage('loans') });
+  }
+  const recv = ls.filter(l => /lent/i.test(l.type)).reduce((s,l) => s + Number(l.pending||0), 0);
+  if (recv > 0) {
+    out.push({ id:`loans:recv:${Math.round(recv)}`, kind:'info', icon:'users',
+      title:'Money to receive',
+      body:`${fmt(recv)} still owed to you.`,
+      action: () => switchPage('loans') });
+  }
+  return out;
+}
+
+let _notifCache = [];
+
+function refreshNotifications() {
+  _notifCache = buildNotifications();
+  const read = readNotifIds();
+  const unread = _notifCache.filter(n => !read.has(n.id)).length;
+  const dot = document.getElementById('notif-dot');
+  if (dot) dot.style.display = unread ? 'block' : 'none';
+}
+
+const NOTIF_ICONS = {
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'
+};
+
+function openNotifications() {
+  refreshNotifications();
+  const read = readNotifIds();
+  const el = document.getElementById('notif-list');
+  if (!_notifCache.length) {
+    el.innerHTML = `<div class="notif-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <div>You're all caught up</div>
+      <span>EMI reminders and budget alerts will show up here</span>
+    </div>`;
+  } else {
+    el.innerHTML = _notifCache.map((n, i) =>
+      `<div class="notif-row ${read.has(n.id) ? '' : 'unread'}" onclick="tapNotification(${i})">
+        <div class="notif-icon ${n.kind}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${NOTIF_ICONS[n.icon] || ''}</svg>
+        </div>
+        <div class="notif-body">
+          <div class="notif-title">${esc(n.title)}</div>
+          <div class="notif-text">${esc(n.body)}</div>
+        </div>
+      </div>`).join('');
+  }
+  document.getElementById('notif-overlay').classList.add('open');
+}
+
+function tapNotification(i) {
+  const n = _notifCache[i];
+  if (!n) return;
+  const read = readNotifIds();
+  read.add(n.id);
+  saveNotifIds(read);
+  closeOverlay('notif-overlay');
+  refreshNotifications();
+  if (n.action) n.action();
+}
+
+function markNotificationsRead() {
+  const read = readNotifIds();
+  _notifCache.forEach(n => read.add(n.id));
+  saveNotifIds(read);
+  refreshNotifications();
+  openNotifications();
+  showToast('All caught up');
 }
 
 // ── MONTH FILTER CHIPS ──
@@ -2766,46 +3053,6 @@ function renderAll() {
 }
 
 // ── RENDER DASHBOARD ──
-function renderDashboard() {
-  const range = getDateRange(dashFilterType);
-  const from = range.from, to = range.to;
-
-  const expenses = appData.expenses.filter(r => { const ts = parseSheetDate(r['Date']); return ts >= from && ts <= to; });
-  const income   = appData.income.filter(r   => { const ts = parseSheetDate(r['Date']); return ts >= from && ts <= to; });
-
-  const totalExp = expenses.reduce((s, r) => s + Number(r['Expense Amount'] || 0), 0);
-  const totalInc = income.reduce((s, r)   => s + Number(r['Income Amount']   || 0), 0);
-  const balance  = totalInc - totalExp;
-
-  // Loans summary
-  const loanSummary = appData.loanSummary || [];
-  const toReceive = loanSummary.filter(l => l.type === 'Lent' || l.type === 'lent').reduce((s, l) => s + Number(l.pending || 0), 0);
-  const toOwe     = loanSummary.filter(l => l.type === 'Borrowed' || l.type === 'borrowed').reduce((s, l) => s + Number(l.pending || 0), 0);
-
-  const el = document.getElementById('dash-period-label');
-  if (el) el.textContent = 'This Month';
-
-  document.getElementById('dash-balance').innerHTML = fmtBalance(balance);
-  renderTrend(balance);
-  document.getElementById('dash-income').textContent  = fmtMini(totalInc);
-  document.getElementById('dash-expense').textContent = fmtMini(totalExp);
-  document.getElementById('dash-receive').textContent = fmt(toReceive);
-  document.getElementById('dash-owe').textContent     = fmt(toOwe);
-  updateEyeIcon();
-
-  // Recent transactions — merge expenses + income, sort newest first, take 10
-  const allTxns = [
-    ...expenses.map((r, i) => ({ ...r, _type: 'expense', _amt: Number(r['Expense Amount'] || 0), _date: r['Date'], _cat: r['Category'], _desc: r['Description'], _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) })),
-    ...income.map((r, i)   => ({ ...r, _type: 'income',  _amt: Number(r['Income Amount']   || 0), _date: r['Date'], _cat: r['Category'], _desc: r['Description'], _pm: r['Payment Mode'], _rowIndex: r._rowIndex, _sortKey: sortKey(r, i) }))
-  ].sort((a, b) => b._sortKey - a._sortKey).slice(0, 10);
-
-  const recentEl = document.getElementById('dash-recent');
-  if (!allTxns.length) {
-    recentEl.innerHTML = emptyState('No transactions', 'Add your first entry using the + button');
-    return;
-  }
-  recentEl.innerHTML = allTxns.map(r => entryItemHTML(r)).join('');
-}
 
 // ── ENTRY ITEM HTML ──
 function entryItemHTML(r) {
@@ -3295,6 +3542,7 @@ function openAnaAccountSheet() {
 function setAnaAccount(id) {
   anaAccount = id || null;
   summarySel = null;
+  renderDashboard();
   renderSummary();
   renderAnalytics();
   closeOverlay('anaacct-overlay');
