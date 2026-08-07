@@ -1050,3 +1050,108 @@ body.no-scroll{overflow:hidden;}
 .catpick-tile.all svg{width:22px;height:22px;}
 .catpick-label{font-size:10.5px;font-weight:600;color:var(--text2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ══════════════════════════════════════════════
+   DASHBOARD — gradient hero + overlapping sheet
+   ══════════════════════════════════════════════ */
+body.hide-topbar .topbar{display:none;}
+
+.hero{padding:calc(env(safe-area-inset-top) + 18px) 22px 74px;
+  background:linear-gradient(160deg,var(--blue-light) 0%,var(--blue) 45%,var(--blue-dark2) 100%);
+  position:relative;overflow:hidden;color:#fff;}
+/* Soft light blooms, same idea as the reference's blurred shapes */
+.hero::before,.hero::after{content:'';position:absolute;border-radius:50%;
+  background:rgba(255,255,255,.11);pointer-events:none;}
+.hero::before{width:280px;height:280px;top:-110px;right:-90px;}
+.hero::after{width:220px;height:220px;bottom:-120px;left:-70px;}
+
+.hero-top{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:26px;position:relative;z-index:1;}
+.hero-avatar{width:46px;height:46px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.4);
+  color:#fff;font-size:18px;font-weight:800;cursor:pointer;position:relative;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  transition:transform .12s;}
+.hero-avatar:active{transform:scale(.92);}
+.hero-avatar.multi::after{content:'';position:absolute;bottom:-1px;right:-1px;
+  width:12px;height:12px;border-radius:50%;background:#34d399;
+  border:2px solid var(--blue);}
+.hero-icon-btn{width:44px;height:44px;border-radius:50%;flex-shrink:0;border:none;
+  background:rgba(255,255,255,.18);color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:transform .12s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.hero-icon-btn svg{width:19px;height:19px;}
+.hero-icon-btn:active{transform:scale(.9);}
+
+.hero-label{text-align:center;font-size:14px;font-weight:500;
+  color:rgba(255,255,255,.8);position:relative;z-index:1;}
+.hero-balance{text-align:center;margin-top:4px;position:relative;z-index:1;
+  font-weight:800;letter-spacing:-2.5px;line-height:1.05;
+  font-size:clamp(40px,12.5vw,58px);}
+.hero-balance .bal-symbol{opacity:.65;margin-right:2px;}
+.hero-balance .bal-dec{opacity:.55;font-size:.62em;letter-spacing:-1px;}
+.hero-trend{display:flex;justify-content:center;margin-top:14px;
+  position:relative;z-index:1;}
+.trend-pill{display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.18);border-radius:20px;padding:7px 15px;
+  font-size:12.5px;font-weight:600;color:#fff;}
+.trend-pill svg{width:12px;height:12px;}
+.trend-pill.up{color:#b9f6ca;}
+.trend-pill.down{color:#ffcdd2;}
+
+/* Layered card deck */
+.card-stack{position:relative;margin-top:26px;z-index:1;}
+.stack-layer{position:absolute;left:50%;transform:translateX(-50%);
+  border-radius:20px;background:rgba(255,255,255,.16);}
+.stack-l2{width:74%;height:34px;top:-20px;}
+.stack-l1{width:87%;height:34px;top:-10px;background:rgba(255,255,255,.2);}
+.stack-front{position:relative;border-radius:22px;padding:18px 20px 15px;
+  background:rgba(255,255,255,.24);border:1px solid rgba(255,255,255,.3);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+.sf-cols{display:flex;align-items:center;gap:18px;}
+.sf-cols > div{flex:1;min-width:0;}
+.sf-div{flex:0 0 1px !important;height:34px;background:rgba(255,255,255,.3);}
+.sf-label{font-size:11px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;
+  color:rgba(255,255,255,.75);}
+.sf-val{font-size:19px;font-weight:800;color:#fff;margin-top:3px;letter-spacing:-.5px;}
+.sf-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;
+  font-size:11px;font-weight:600;color:rgba(255,255,255,.7);}
+.sf-brand{letter-spacing:2.5px;font-weight:800;color:rgba(255,255,255,.55);}
+
+/* White panel that rides up over the hero */
+.dash-sheet{background:var(--bg);border-radius:26px 26px 0 0;
+  margin:-28px 0 0;padding:22px 16px 8px;position:relative;z-index:2;}
+
+.quick-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.quick-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 10px;border-radius:16px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text);
+  font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;
+  transition:transform .12s,background .15s;-webkit-tap-highlight-color:transparent;}
+.quick-btn svg{width:16px;height:16px;}
+.quick-btn:active{transform:scale(.95);background:var(--card-hover);}
+.quick-mid{flex:0 0 52px;padding:14px 0;border-radius:50%;height:52px;}
+.quick-mid svg{width:18px;height:18px;}
+
+.loan-strip{display:flex;gap:10px;margin-bottom:22px;}
+.loan-mini{flex:1;padding:14px 16px;border-radius:16px;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);
+  transition:transform .12s,background .15s;}
+.loan-mini:active{transform:scale(.98);background:var(--card-hover);}
+.lm-label{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--text3);}
+.lm-val{font-size:19px;font-weight:800;margin-top:4px;letter-spacing:-.5px;}
+.lm-val.green{color:var(--green);}
+.lm-val.red{color:var(--red);}
+
+.rt-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rt-title{font-size:17px;font-weight:800;color:var(--text);letter-spacing:-.3px;}
+.rt-viewall{background:none;border:none;cursor:pointer;font-family:inherit;
+  font-size:13px;font-weight:600;color:var(--text3);padding:6px 2px;
+  -webkit-tap-highlight-color:transparent;}
+.rt-viewall:active{color:var(--blue);}
+
+/* The dashboard supplies its own padding — the hero must reach the edges */
+#page-dashboard{padding:0;}
