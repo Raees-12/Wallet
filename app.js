@@ -493,7 +493,8 @@ function resetAppState() {
   ['person-loans-overlay','loan-action-overlay','emi-action-overlay',
    'entry-detail-overlay','cat-entries-overlay',
    'datepick-overlay','type-overlay','period-overlay','catfilter-overlay',
-   'anaperiod-overlay','day-overlay','budget-overlay'].forEach(id => {
+   'anaperiod-overlay','day-overlay','budget-overlay',
+   'import-overlay','clear-overlay','catbudget-overlay'].forEach(id => {
     const o = document.getElementById(id); if (o) o.classList.remove('open');
   });
   const out = document.getElementById('report-output');
@@ -2526,6 +2527,199 @@ async function copyFeedback() {
     catch(err) { showToast('Copy failed'); }
     document.body.removeChild(ta);
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// IMPORT / EXPORT / CLEAR
+// ══════════════════════════════════════════════════════════════
+const BACKUP_VERSION = 1;
+
+// Large payloads can't ride in a query string, so imports go over POST.
+async function apiPost(params) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch(e) { throw new Error('API error: ' + text.slice(0, 120)); }
+}
+
+function buildBackup() {
+  return {
+    app: 'Wallet',
+    version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    user: currentUser ? { id: currentUser.id, username: currentUser.username } : null,
+    counts: {
+      expenses: (appData.expenses || []).length,
+      income: (appData.income || []).length,
+      loans: (appData.loans || []).length,
+      emis: (appData.emis || []).length,
+      emiPayments: (appData.emiPayments || []).length,
+      accounts: (appData.accounts || []).length
+    },
+    data: {
+      expenses:    appData.expenses    || [],
+      income:      appData.income      || [],
+      loans:       appData.loans       || [],
+      emis:        appData.emis        || [],
+      emiPayments: appData.emiPayments || [],
+      accounts:    (appData.accounts   || []).map(a => ({
+        'Account Name': a.name, 'Opening Balance': a.opening
+      })),
+      config: appData.config || {}
+    },
+    preferences: prefs
+  };
+}
+
+function exportData() {
+  const backup = buildBackup();
+  const name = `wallet-backup-${(currentUser && currentUser.username) || 'user'}-${todayISO()}.json`;
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const c = backup.counts;
+  showToast(`Exported ${c.expenses + c.income} transactions`);
+}
+
+// ── Import ──
+let _importPayload = null;
+
+function openImport() {
+  _importPayload = null;
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-summary').style.display = 'none';
+  document.getElementById('import-go').style.display = 'none';
+  document.getElementById('import-pass-row').style.display = 'none';
+  document.getElementById('import-pass').value = '';
+  document.querySelectorAll('#import-overlay .opt-row').forEach((el, i) =>
+    el.classList.toggle('active', i === 0));
+  _importMode = 'merge';
+  document.getElementById('import-overlay').classList.add('open');
+}
+
+let _importMode = 'merge';
+function setImportMode(mode, el) {
+  _importMode = mode;
+  document.querySelectorAll('#import-overlay .opt-row').forEach(r => r.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('import-pass-row').style.display =
+    mode === 'replace' && _importPayload ? 'block' : 'none';
+}
+
+function handleImportFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const data = parsed.data || parsed;      // tolerate a bare data object
+      if (!data || typeof data !== 'object') throw new Error('bad shape');
+      const counts = {
+        expenses: (data.expenses || []).length,
+        income: (data.income || []).length,
+        loans: (data.loans || []).length,
+        emis: (data.emis || []).length,
+        emiPayments: (data.emiPayments || []).length,
+        accounts: (data.accounts || []).length
+      };
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      if (!total) throw new Error('empty');
+      _importPayload = data;
+      const el = document.getElementById('import-summary');
+      el.style.display = 'block';
+      el.innerHTML = `<div class="imp-title">Ready to import</div>` +
+        Object.entries(counts).filter(([, n]) => n)
+          .map(([k, n]) => `<div class="imp-line"><span>${k}</span><b>${n}</b></div>`).join('') +
+        (parsed.exportedAt ? `<div class="imp-meta">Backup from ${new Date(parsed.exportedAt).toLocaleString()}</div>` : '');
+      document.getElementById('import-go').style.display = 'flex';
+      document.getElementById('import-pass-row').style.display =
+        _importMode === 'replace' ? 'block' : 'none';
+    } catch(e) {
+      _importPayload = null;
+      showToast('That file is not a Wallet backup');
+    }
+  };
+  reader.onerror = () => showToast('Could not read that file');
+  reader.readAsText(file);
+}
+
+async function runImport() {
+  if (!_importPayload) { showToast('Choose a backup file first'); return; }
+  const password = document.getElementById('import-pass').value;
+  if (_importMode === 'replace' && !password) { showToast('Enter your password to replace everything'); return; }
+
+  const go = () => doImport(password);
+  if (_importMode === 'replace') {
+    showConfirm('Replace all existing data with this backup?\n\nEverything currently in your account will be deleted first. This cannot be undone.',
+      go, 'Replace');
+  } else { go(); }
+}
+
+async function doImport(password) {
+  const btn = document.getElementById('import-go');
+  btn.textContent = 'Importing...'; btn.disabled = true;
+  try {
+    const res = await apiPost({
+      action: 'importData',
+      userId: currentUser.id,
+      mode: _importMode,
+      password,
+      payload: _importPayload
+    });
+    if (res.success) {
+      closeOverlay('import-overlay');
+      clearCache();
+      await refreshFromAPI();
+      const n = Object.values(res.counts || {}).reduce((a, b) => a + b, 0);
+      showToast(`Imported ${n} records`);
+    } else {
+      showToast(res.error || 'Import failed');
+    }
+  } catch(e) {
+    showToast('Import failed — ' + e.message);
+  }
+  btn.textContent = 'Import'; btn.disabled = false;
+}
+
+// ── Clear everything ──
+function openClearData() {
+  document.getElementById('clear-pass').value = '';
+  document.getElementById('clear-confirm').value = '';
+  document.getElementById('clear-overlay').classList.add('open');
+}
+
+async function runClearData() {
+  const password = document.getElementById('clear-pass').value;
+  const confirm  = document.getElementById('clear-confirm').value.trim().toUpperCase();
+  if (!password) { showToast('Enter your password'); return; }
+  if (confirm !== 'DELETE') { showToast('Type DELETE to confirm'); return; }
+
+  showConfirm(
+    'Delete every transaction, loan, EMI and account?\n\nThis wipes your data from the server and cannot be undone. Export a backup first if you might want it back.',
+    async () => {
+      const btn = document.getElementById('clear-go');
+      btn.textContent = 'Deleting...'; btn.disabled = true;
+      try {
+        const res = await apiPost({
+          action: 'clearData', userId: currentUser.id, password, confirm: 'DELETE'
+        });
+        if (res.success) {
+          closeOverlay('clear-overlay');
+          clearCache();
+          await refreshFromAPI();
+          showToast('All data deleted');
+        } else { showToast(res.error || 'Could not delete'); }
+      } catch(e) { showToast('Failed — ' + e.message); }
+      btn.textContent = 'Delete everything'; btn.disabled = false;
+    }, 'Delete');
 }
 
 // ══════════════════════════════════════════════════════════════
