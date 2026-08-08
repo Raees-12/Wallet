@@ -705,6 +705,7 @@ async function loadAllData(silent = false) {
   const cached = loadCachedData();
   if (cached) {
     appData = cached;
+    applyDefaultAccount();
     syncConfigStateFromServer();
     buildMonthChips();
     buildDashMonthChips();
@@ -736,6 +737,7 @@ async function refreshFromAPI() {
     appData.emis        = res.emis        || [];
     appData.emiPayments = res.emiPayments || [];
     appData.accounts    = res.accounts    || [];
+    applyDefaultAccount();
 
     saveCachedData(appData);
     syncConfigStateFromServer();
@@ -2198,6 +2200,7 @@ function renderSettings() {
     bv.textContent = prefs.budget ? fmt(prefs.budget)
       : nCat ? `${nCat} categories` : 'Not set';
   }
+  document.getElementById('pref-carry').checked        = !!prefs.carryForward;
   document.getElementById('pref-hide-balance').checked = !!prefs.hideBalance;
   document.getElementById('pref-decimals').checked     = !!prefs.decimals;
   document.getElementById('pref-haptics').checked      = !!prefs.haptics;
@@ -2529,7 +2532,12 @@ async function copyFeedback() {
 // PREFERENCES
 // ══════════════════════════════════════════════════════════════
 const PREFS_KEY = 'wallet_prefs_v1';
-let prefs = { hideBalance: true, decimals: false, haptics: true, budget: 0, catBudgets: {} };
+let prefs = {
+  hideBalance: true, decimals: false, haptics: true,
+  budget: 0, catBudgets: {},
+  carryForward: false,     // false = each month starts from zero
+  defaultAccount: ''       // preselected account filter on launch
+};
 
 function loadPrefs() {
   try {
@@ -2541,7 +2549,7 @@ function setPref(key, val) {
   prefs[key] = !!val;
   persistPrefs();
   if (key === 'hideBalance') { balanceHidden = !!val; updateEyeIcon(); }
-  if (key === 'decimals')    renderAll();
+  if (key === 'decimals' || key === 'carryForward') renderAll();
   else if (key === 'hideBalance') renderDashboard();
   if (key === 'haptics' && val) buzz(12);
 }
@@ -2808,14 +2816,25 @@ function renderDashboard() {
   const totalExp = expenses.reduce((s, r) => s + Number(r['Expense Amount'] || 0), 0);
   const totalInc = income.reduce((s, r)   => s + Number(r['Income Amount']   || 0), 0);
 
-  // Total balance = all time, plus any account opening balances
-  const allExp = appData.expenses.filter(acct).reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
-  const allInc = appData.income.filter(acct).reduce((s,r) => s + Number(r['Income Amount']||0), 0);
-  const opening = !anaAccount
-    ? accountsList().reduce((s,a) => s + Number(a.opening||0), 0)
-    : anaAccount === UNASSIGNED ? 0
-    : Number((accountsList().find(a => a.name === anaAccount) || {}).opening || 0);
-  const balance = opening + allInc - allExp;
+  // Carry forward ON  → a running balance: whatever was left over last month
+  //                      rolls into this one, plus any account opening balance.
+  // Carry forward OFF → each month stands alone and starts from zero.
+  let balance, balanceLabel;
+  if (prefs.carryForward) {
+    const allExp = appData.expenses.filter(acct).reduce((s,r) => s + Number(r['Expense Amount']||0), 0);
+    const allInc = appData.income.filter(acct).reduce((s,r) => s + Number(r['Income Amount']||0), 0);
+    const opening = !anaAccount
+      ? accountsList().reduce((s,a) => s + Number(a.opening||0), 0)
+      : anaAccount === UNASSIGNED ? 0
+      : Number((accountsList().find(a => a.name === anaAccount) || {}).opening || 0);
+    balance = opening + allInc - allExp;
+    balanceLabel = 'Total Balance';
+  } else {
+    balance = totalInc - totalExp;
+    balanceLabel = 'Balance this month';
+  }
+  const lblEl = document.getElementById('bc-label');
+  if (lblEl) lblEl.textContent = balanceLabel;
 
   const loanSummary = appData.loanSummary || [];
   const toReceive = loanSummary.filter(l => /lent/i.test(l.type)).reduce((s, l) => s + Number(l.pending || 0), 0);
@@ -3670,6 +3689,18 @@ const UNASSIGNED = '__none__';
 const UNASSIGNED_LABEL = 'Main account';
 
 function accountsList() { return appData.accounts || []; }
+
+// Applies the saved default account the first time data lands. Skipped once the
+// user has picked something themselves, so a manual "All accounts" sticks.
+let _defaultAccountApplied = false;
+function applyDefaultAccount() {
+  if (_defaultAccountApplied) return;
+  const name = prefs.defaultAccount;
+  if (!name) { _defaultAccountApplied = true; return; }
+  if (!accountsList().some(a => a.name === name)) return;   // wait for accounts to load
+  anaAccount = name;
+  _defaultAccountApplied = true;
+}
 function hasAccounts()  { return accountsList().length > 0; }
 
 // Filters a row set down to the account currently selected in Analytics
@@ -3703,6 +3734,7 @@ function openAnaAccountSheet() {
 }
 
 function setAnaAccount(id) {
+  _defaultAccountApplied = true;   // an explicit choice wins over the default
   anaAccount = id || null;
   summarySel = null;
   renderDashboard();
@@ -3732,7 +3764,8 @@ function renderAccountsPage() {
         <div class="settings-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
         </div>
-        <div class="settings-row-label">${esc(a.name)}
+        <div class="settings-row-label">${esc(a.name)}${
+          prefs.defaultAccount === a.name ? '<span class="acct-default">Default</span>' : ''}
           <span class="settings-row-hint">Opening ${fmt(a.opening)}</span></div>
         <div class="settings-row-value" style="color:${bal < 0 ? 'var(--red)' : 'var(--green)'}">${fmt(bal)}</div>
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
@@ -3758,6 +3791,7 @@ function openAddAccount() {
   document.getElementById('bank-sheet-title').textContent = 'Add bank account';
   document.getElementById('bank-name').value = '';
   document.getElementById('bank-opening').value = '';
+  document.getElementById('bank-default').checked = !accountsList().length;  // first one defaults
   document.getElementById('bank-delete-btn').style.display = 'none';
   document.getElementById('bank-overlay').classList.add('open');
 }
@@ -3769,6 +3803,7 @@ function openEditAccount(rowId) {
   document.getElementById('bank-sheet-title').textContent = 'Edit account';
   document.getElementById('bank-name').value = a.name;
   document.getElementById('bank-opening').value = a.opening;
+  document.getElementById('bank-default').checked = prefs.defaultAccount === a.name;
   document.getElementById('bank-delete-btn').style.display = 'flex';
   document.getElementById('bank-overlay').classList.add('open');
 }
@@ -3786,6 +3821,15 @@ async function saveAccount() {
       : await api({ action:'addAccount',  userId: currentUser.id,
                     name, opening: opening || 0 });
     if (res.success) {
+      const makeDefault = document.getElementById('bank-default').checked;
+      if (makeDefault) {
+        prefs.defaultAccount = name;
+        anaAccount = name;
+      } else if (prefs.defaultAccount === (editingAccount ? editingAccount.name : name)) {
+        prefs.defaultAccount = '';       // default was switched off
+        if (anaAccount === name) anaAccount = null;
+      }
+      persistPrefs();
       showToast(editingAccount ? 'Account updated' : 'Account added');
       closeOverlay('bank-overlay');
       clearCache();
@@ -3805,6 +3849,8 @@ function deleteAccountConfirm() {
     async () => {
       const res = await api({ action:'deleteAccount', userId: currentUser.id, rowId: a.rowId });
       if (res.success) {
+        if (prefs.defaultAccount === a.name) { prefs.defaultAccount = ''; persistPrefs(); }
+        if (anaAccount === a.name) anaAccount = null;
         showToast('Account deleted');
         closeOverlay('bank-overlay');
         clearCache();
