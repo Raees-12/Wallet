@@ -42,6 +42,7 @@ module.exports = async (req, res) => {
       case 'deleteAccount':       return res.json(await deleteAccount(params));
       case 'importData':          return res.json(await importData(params));
       case 'clearData':           return res.json(await clearData(params));
+      case 'saveSettings':        return res.json(await saveSettings(params));
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
     }
@@ -74,7 +75,7 @@ async function login({ username, password }) {
 async function getAllData({ userId }) {
   if (!userId) return { success: false, error: 'userId required' };
 
-  const [expenses, income, loans, emis, emiPayments, cfgRows, accounts] = await Promise.all([
+  const [expenses, income, loans, emis, emiPayments, cfgRows, accounts, settings] = await Promise.all([
     db.from('expenses').select('*').eq('ID', userId),
     db.from('income').select('*').eq('ID', userId),
     db.from('loan').select('*').eq('ID', userId),
@@ -82,11 +83,15 @@ async function getAllData({ userId }) {
     db.from('emi_payments').select('*').eq('ID', userId),
     db.from('personalised_configuration').select('*').eq('ID', userId),
     db.from('bank_accounts').select('*').eq('ID', userId),
+    db.from('user_settings').select('*').eq('ID', userId).maybeSingle(),
   ]);
   for (const r of [expenses, income, loans, emis, emiPayments, cfgRows]) if (r.error) throw r.error;
   // The accounts table is optional — if the migration hasn't been run yet the
   // rest of the app keeps working and the account features stay hidden.
   const accountRows = accounts.error ? [] : (accounts.data || []);
+  // Both tables are optional — if their migrations haven't been run the rest of
+  // the app still works and these features simply stay dormant.
+  const userSettings = (settings.error || !settings.data) ? null : (settings.data['Settings'] || {});
 
   const config = buildConfig(cfgRows.data || []);
 
@@ -101,6 +106,7 @@ async function getAllData({ userId }) {
     accounts: accountRows
       .map(a => ({ rowId: a.row_id, name: a['Account Name'], opening: toNum(a['Opening Balance']) }))
       .sort((a, b) => a.name.localeCompare(b.name)),
+    settings: userSettings,
     config,
   };
 }
@@ -781,5 +787,34 @@ async function clearData({ userId, password, confirm }) {
   const ok = await verifyPassword(userId, password);
   if (!ok) return { success: false, error: 'Incorrect password' };
   await wipeUser(userId);
+  return { success: true };
+}
+
+// ══════════════════════════════════════════════════════════════
+// USER SETTINGS
+// ══════════════════════════════════════════════════════════════
+const ALLOWED_SETTINGS = [
+  'theme', 'accent', 'hideBalance', 'decimals', 'haptics',
+  'carryForward', 'budget', 'catBudgets', 'defaultAccount'
+];
+
+async function saveSettings({ userId, settings }) {
+  if (!userId) return { success: false, error: 'Not signed in' };
+  if (!settings || typeof settings !== 'object') {
+    return { success: false, error: 'No settings provided' };
+  }
+  // Only persist keys we know about, so a stray client can't bloat the row
+  const clean = {};
+  ALLOWED_SETTINGS.forEach(k => { if (settings[k] !== undefined) clean[k] = settings[k]; });
+
+  const { error } = await db
+    .from('user_settings')
+    .upsert({ ID: userId, Settings: clean }, { onConflict: 'ID' });
+  if (error) {
+    if (error.code === '42P01') {
+      return { success: false, error: 'Settings table missing — run the migration' };
+    }
+    throw error;
+  }
   return { success: true };
 }
