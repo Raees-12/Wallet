@@ -1,5 +1,5 @@
 const { supabaseAdmin } = require('../lib/supabaseAdmin');
-const { authenticate } = require('../lib/auth');
+const { authenticate, updateProfile } = require('../lib/auth');
 const { parseDMY, formatDMY, addMonthsOnDay, genId, toNum } = require('../lib/helpers');
 
 const db = supabaseAdmin;
@@ -30,6 +30,7 @@ module.exports = async (req, res) => {
   try {
     switch (action) {
       case 'me':                  return res.json(await me(ctx));
+      case 'updateProfile':       return res.json(await saveProfile(ctx));
       case 'getAllData':          return res.json(await getAllData(ctx));
       case 'addExpense':          return res.json(await addExpense(ctx));
       case 'editExpense':         return res.json(await editExpense(ctx));
@@ -68,17 +69,25 @@ module.exports = async (req, res) => {
 // The client asks who it is rather than asserting it.
 // ══════════════════════════════════════════════════════════════
 async function me({ _auth }) {
+  const p = _auth.profile;
   return {
     success: true,
     user: {
-      id: _auth.walletId,          // what wallet rows are keyed by
-      authId: _auth.userId,        // the Supabase auth UUID
-      username: _auth.username,
+      id: _auth.walletId,               // what wallet rows are keyed by
+      authId: _auth.authId,             // the Supabase auth UUID
+      username: p.firstName || (p.email ? p.email.split('@')[0] : 'You'),
+      firstName: p.firstName,
+      lastName: p.lastName,
+      fullName: p.fullName,
+      mobile: p.mobile,
       email: _auth.email,
-      provider: _auth.provider,
       createdAt: _auth.createdAt,
     },
   };
+}
+
+async function saveProfile({ _auth, firstName, lastName, mobile }) {
+  return updateProfile(_auth.walletId, { firstName, lastName, mobile });
 }
 
 // ══════════════════════════════════════════════════════════════
