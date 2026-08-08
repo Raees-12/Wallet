@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Wallet</title>
+<script>
+  // SPA 404 fallback: send any unknown path back to the app's home page
+  // on whatever domain it's actually running on.
+  sessionStorage.setItem('redirect', location.href);
+  location.replace('/');
+</script>
+</head>
+<body></body>
+</html>
