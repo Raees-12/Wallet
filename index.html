@@ -101,7 +101,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
-        <div class="bc-label">Total Balance</div>
+        <div class="bc-label" id="bc-label">Balance this month</div>
         <div class="bc-amount-row">
           <div class="bc-amount" id="dash-balance">
             <span class="bal-symbol">₹</span><span class="bal-main">0</span><span class="bal-dec">.00</span>
@@ -526,6 +526,13 @@
       </div>
 
       <div class="settings-card">
+        <div class="settings-row settings-row-static">
+          <div class="settings-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+          <div class="settings-row-label">Carry forward balance<span class="settings-row-hint">Roll last month's leftover into this month</span></div>
+          <label class="toggle"><input type="checkbox" id="pref-carry" onchange="setPref('carryForward',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
         <div class="settings-row" onclick="closeSettings();setTimeout(()=>switchPage('budget'),320)">
           <div class="settings-chip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -951,6 +958,15 @@
     <div class="form-group">
       <div class="field-label">Money already in this account</div>
       <input type="number" id="bank-opening" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="settings-card" style="margin-bottom:14px">
+      <div class="settings-row settings-row-static">
+        <div class="settings-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polygon points="12 2 15.1 8.6 22 9.6 17 14.5 18.2 21.4 12 18.1 5.8 21.4 7 14.5 2 9.6 8.9 8.6 12 2"/></svg>
+        </div>
+        <div class="settings-row-label">Default account<span class="settings-row-hint">Preselected on the dashboard</span></div>
+        <label class="toggle"><input type="checkbox" id="bank-default"><span class="toggle-slider"></span></label>
+      </div>
     </div>
     <button class="btn btn-primary" id="bank-save-btn" onclick="saveAccount()">Save</button>
     <button class="btn btn-danger" id="bank-delete-btn" style="display:none" onclick="deleteAccountConfirm()">Delete account</button>
