@@ -55,6 +55,7 @@ module.exports = async (req, res) => {
       case 'importData':          return res.json(await importData(ctx));
       case 'clearData':           return res.json(await clearData(ctx));
       case 'saveSettings':        return res.json(await saveSettings(ctx));
+      case 'deleteMyAccount':     return res.json(await deleteMyAccount(ctx));
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
     }
@@ -836,6 +837,41 @@ async function saveSettings({ userId, settings }) {
       return { success: false, error: 'Settings table missing — run the migration' };
     }
     throw error;
+  }
+  return { success: true };
+}
+
+// ══════════════════════════════════════════════════════════════
+// ACCOUNT DELETION
+//
+// Irreversible. Removes every wallet row, the profile row, the saved
+// preferences, and finally the Supabase Auth account itself.
+// ══════════════════════════════════════════════════════════════
+async function deleteMyAccount({ userId, confirm, _auth }) {
+  if (!_auth || !_auth.authId) return { success: false, error: 'Not signed in' };
+  if (confirm !== 'DELETE MY ACCOUNT') {
+    return { success: false, error: 'Confirmation text did not match' };
+  }
+
+  // 1. Every transactional table
+  await wipeUser(userId);
+
+  // 2. Preferences (deliberately not part of wipeUser, which "Clear data" uses)
+  const { error: setErr } = await db.from('user_settings').delete().eq('ID', userId);
+  if (setErr && setErr.code !== '42P01') throw setErr;
+
+  // 3. The profile row
+  const { error: userErr } = await db.from('users').delete().eq('ID', userId);
+  if (userErr) throw userErr;
+
+  // 4. The login itself. Done last: if anything above fails we stop, rather
+  //    than leaving orphaned data behind an account that can no longer sign in.
+  const { error: authErr } = await db.auth.admin.deleteUser(_auth.authId);
+  if (authErr) {
+    return {
+      success: false,
+      error: 'Your data was deleted but the login could not be removed. Contact support.',
+    };
   }
   return { success: true };
 }
