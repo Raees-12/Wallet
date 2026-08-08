@@ -708,7 +708,14 @@
           <div class="settings-chip settings-chip-danger">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           </div>
-          <div class="settings-row-label" style="color:var(--red)">Clear all data<span class="settings-row-hint">Wipes everything · needs your password</span></div>
+          <div class="settings-row-label" style="color:var(--red)">Clear all data<span class="settings-row-hint">Deletes your entries · your account stays</span></div>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="settings-row settings-row-danger" onclick="openDeleteAccount()">
+          <div class="settings-chip settings-chip-danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="11" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg>
+          </div>
+          <div class="settings-row-label" style="color:var(--red)">Delete my account<span class="settings-row-hint">Removes your account and everything in it, forever</span></div>
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
       </div>
@@ -1095,6 +1102,47 @@
     <div id="import-pass-row" style="display:none"></div>
 
     <button class="btn btn-primary" id="import-go" style="display:none;margin-top:14px" onclick="runImport()">Import</button>
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT SHEET -->
+<div class="overlay" id="delacct-overlay" onclick="closeOverlay('delacct-overlay',event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" style="color:var(--red)">Delete my account</div>
+
+    <div class="danger-note">
+      This permanently deletes your account and everything attached to it:
+      <ul class="del-list">
+        <li>All expenses and income</li>
+        <li>All loans and repayments</li>
+        <li>All EMIs and their payment history</li>
+        <li>Bank accounts, categories and budgets</li>
+        <li>Your profile and your login</li>
+      </ul>
+      <b>There is no undo and no backup. Export your data first if you may want it.</b>
+    </div>
+
+    <button class="btn btn-ghost" style="margin-bottom:16px" onclick="exportData()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export my data first
+    </button>
+
+    <div class="form-group">
+      <div class="field-label">Confirm your password</div>
+      <div class="pw-wrap">
+        <input type="password" id="del-pass" placeholder="Your password" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="field-label">Type <b>DELETE MY ACCOUNT</b> to confirm</div>
+      <input type="text" id="del-confirm" placeholder="DELETE MY ACCOUNT"
+        autocomplete="off" autocapitalize="characters" spellcheck="false">
+    </div>
+
+    <div class="login-err" id="del-err"></div>
+    <button class="btn btn-danger" id="del-btn" onclick="runDeleteAccount()">Delete my account forever</button>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="closeOverlay('delacct-overlay')">Cancel</button>
   </div>
 </div>
 
