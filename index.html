@@ -44,83 +44,122 @@
 
 <!-- LOGIN -->
 <div id="login-screen" class="screen active">
-  <div class="login-logo-wrap">
-    <img id="login-logo" src="Assets/l_logo.png" class="app-logo login-logo-img" alt="Wallet">
-    <div class="login-tagline">Smart finance tracking</div>
+
+  <!-- ── WELCOME ── -->
+  <div class="onb" id="auth-step-welcome">
+    <div class="onb-hero">
+      <div class="onb-sparkles" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="onb-cloud onb-cloud-a"></div>
+      <div class="onb-cloud onb-cloud-b"></div>
+      <div class="onb-art">
+        <img src="Assets/d_logo.png" alt="" class="onb-logo">
+      </div>
+    </div>
+    <div class="onb-sheet">
+      <h1 class="onb-title">Every rupee,<br>in its place.</h1>
+      <p class="onb-sub">Expenses, income, loans and EMIs — tracked in one calm place.</p>
+      <button class="btn btn-primary" onclick="showAuthStep('form');setAuthMode('signup')">Create account</button>
+      <button class="btn btn-ghost" onclick="showAuthStep('form');setAuthMode('login')">I already have an account</button>
+    </div>
   </div>
 
-  <div class="login-card">
-    <!-- STEP 1 — choose a method -->
-    <div id="auth-step-choose">
-      <div class="login-card-title">Welcome</div>
-      <div class="login-card-sub">Sign in or create an account</div>
+  <!-- ── EMAIL + PASSWORD ── -->
+  <div class="auth-page" id="auth-step-form" style="display:none">
+    <button class="auth-back" onclick="showAuthStep('welcome')" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h1 class="auth-title" id="auth-form-title">Log in</h1>
+    <p class="auth-legalese">By continuing you agree to keep your finances tidy.</p>
 
-      <button class="btn btn-google" id="google-btn" onclick="signInWithGoogle()">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.3-2.1 3.5-5.2 3.5-8.9z"/>
-          <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24z"/>
-          <path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.6V6.7H1.4a12 12 0 0 0 0 10.8l4-3.1z"/>
-          <path fill="#EA4335" d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.4 6.7l4 3.1C6.3 6.9 8.9 4.8 12 4.8z"/>
-        </svg>
-        Continue with Google
-      </button>
-
-      <div class="auth-divider"><span>or</span></div>
-
-      <button class="btn btn-ghost" onclick="showAuthStep('email')">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
-        Continue with Email
-      </button>
-
-      <div class="auth-legal">We'll email you a one-time code — no password needed.</div>
+    <div class="field-group">
+      <div class="field-label">Email</div>
+      <input type="email" id="auth-email" placeholder="Your email" autocomplete="email"
+        autocapitalize="none" spellcheck="false" inputmode="email">
     </div>
 
-    <!-- STEP 2 — email address -->
-    <div id="auth-step-email" style="display:none">
-      <button class="auth-back" onclick="showAuthStep('choose')" aria-label="Back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="login-card-title">What's your email?</div>
-      <div class="login-card-sub">We'll send you a 6-digit code to sign in.</div>
-
-      <div class="field-group">
-        <div class="field-label">Email address</div>
-        <input type="email" id="auth-email" placeholder="you@example.com"
-          autocomplete="email" autocapitalize="none" spellcheck="false"
-          inputmode="email" onkeydown="if(event.key==='Enter')sendOTP()">
+    <div class="field-group">
+      <div class="field-label">Password</div>
+      <div class="pw-wrap">
+        <input type="password" id="auth-pass" placeholder="Your password"
+          autocomplete="current-password" onkeydown="if(event.key==='Enter')submitAuthForm()">
+        <button class="pw-toggle" onclick="togglePw()" aria-label="Show password" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
-      <div class="login-err" id="auth-email-err"></div>
-      <button class="btn btn-primary" id="auth-send-btn" onclick="sendOTP()">Send code</button>
+      <div class="pw-hint" id="auth-pass-hint">At least 8 characters.</div>
     </div>
 
-    <!-- STEP 3 — verify the code -->
-    <div id="auth-step-otp" style="display:none">
-      <button class="auth-back" onclick="backToEmail()" aria-label="Back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <div class="login-card-title">Enter the code</div>
-      <div class="login-card-sub">
-        Sent to <b id="auth-email-shown"></b>
-        <button class="auth-link" onclick="backToEmail()">Change</button>
+    <div class="login-err" id="auth-form-err"></div>
+    <div class="auth-ok" id="auth-form-ok"></div>
+
+    <button class="btn btn-primary" id="auth-submit-btn" onclick="submitAuthForm()">Connect</button>
+
+    <div class="auth-row">
+      <button class="auth-link" id="auth-forgot" onclick="forgotPassword()">Forgot password?</button>
+      <button class="auth-link" onclick="sendOTP()">Email me a code instead</button>
+    </div>
+
+    <div class="auth-divider"><span>Or</span></div>
+
+    <button class="btn btn-social" id="google-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.3-2.1 3.5-5.2 3.5-8.9z"/>
+        <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24z"/>
+        <path fill="#FBBC05" d="M5.4 14.4a7.2 7.2 0 0 1 0-4.6V6.7H1.4a12 12 0 0 0 0 10.8l4-3.1z"/>
+        <path fill="#EA4335" d="M12 4.8c1.8 0 3.4.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.4 6.7l4 3.1C6.3 6.9 8.9 4.8 12 4.8z"/>
+      </svg>
+      Sign in with Google
+    </button>
+
+    <div class="auth-switch">
+      <span id="auth-switch-text">New here?</span>
+      <button class="auth-link" id="auth-switch-btn" onclick="toggleAuthMode()">Create an account</button>
+    </div>
+  </div>
+
+  <!-- ── OTP ── -->
+  <div class="auth-page" id="auth-step-otp" style="display:none">
+    <button class="auth-back" onclick="backToEmail()" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h1 class="auth-title">Enter the code</h1>
+    <p class="auth-legalese">
+      Sent to <b id="auth-email-shown"></b>
+      <button class="auth-link" onclick="backToEmail()">Change</button>
+    </p>
+
+    <input type="text" id="auth-otp" class="otp-input" placeholder="000000"
+      inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+      oninput="onOTPInput(this)" onkeydown="if(event.key==='Enter')verifyOTP()">
+
+    <div class="login-err" id="auth-otp-err"></div>
+    <div class="auth-ok" id="auth-otp-ok"></div>
+
+    <button class="btn btn-primary" id="auth-verify-btn" onclick="verifyOTP()">Verify &amp; continue</button>
+    <button class="btn btn-ghost" id="auth-resend-btn" onclick="resendOTP()" disabled>Resend code</button>
+  </div>
+
+  <!-- ── NEW PASSWORD (after a reset link) ── -->
+  <div class="auth-page" id="auth-step-reset" style="display:none">
+    <h1 class="auth-title">Set a new password</h1>
+    <p class="auth-legalese">Choose something you'll remember.</p>
+    <div class="field-group">
+      <div class="field-label">New password</div>
+      <div class="pw-wrap">
+        <input type="password" id="auth-newpass" placeholder="At least 8 characters"
+          autocomplete="new-password" onkeydown="if(event.key==='Enter')saveNewPassword()">
       </div>
-
-      <div class="otp-wrap">
-        <input type="text" id="auth-otp" class="otp-input" placeholder="000000"
-          inputmode="numeric" autocomplete="one-time-code" maxlength="6"
-          oninput="onOTPInput(this)" onkeydown="if(event.key==='Enter')verifyOTP()">
-      </div>
-      <div class="login-err" id="auth-otp-err"></div>
-      <div class="auth-ok" id="auth-otp-ok"></div>
-
-      <button class="btn btn-primary" id="auth-verify-btn" onclick="verifyOTP()">Verify &amp; continue</button>
-      <button class="btn btn-ghost" id="auth-resend-btn" onclick="resendOTP()" disabled>Resend code</button>
     </div>
+    <div class="login-err" id="auth-reset-err"></div>
+    <button class="btn btn-primary" id="auth-reset-btn" onclick="saveNewPassword()">Save password</button>
+  </div>
 
-    <!-- Shown while a Google redirect or existing session is being restored -->
-    <div id="auth-step-loading" style="display:none">
-      <div class="auth-spinner"></div>
-      <div class="login-card-sub" style="text-align:center" id="auth-loading-text">Signing you in…</div>
-    </div>
+  <!-- ── LOADING ── -->
+  <div class="auth-page" id="auth-step-loading" style="display:none">
+    <div class="auth-spinner"></div>
+    <div class="auth-legalese" style="text-align:center" id="auth-loading-text">Signing you in…</div>
   </div>
 </div>
 
