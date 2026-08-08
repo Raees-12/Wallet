@@ -1347,11 +1347,14 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Fix 3: Theme functions (applyTheme) ──
-function applyTheme(theme) {
+function applyTheme(theme, silent) {
   const valid = ['light','dark','amoled','glass'];
   if (!valid.includes(theme)) theme = 'light';
   document.documentElement.setAttribute('data-theme', theme);
   saveTheme(theme);
+  // `silent` means we're applying a value that already came from storage or the
+  // server, so there's nothing new to save back.
+  if (!silent && typeof prefs === 'object') { prefs.theme = theme; persistPrefs(); }
   // Update logos — light gets the multiply-blend logo, every dark-family theme gets the plain one
   const logoSrc = theme === 'light' ? 'Assets/l_logo.png' : 'Assets/d_logo.png';
   const topbarLogo = document.getElementById('topbar-logo');
