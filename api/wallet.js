@@ -40,6 +40,8 @@ module.exports = async (req, res) => {
       case 'addAccount':          return res.json(await addAccount(params));
       case 'editAccount':         return res.json(await editAccount(params));
       case 'deleteAccount':       return res.json(await deleteAccount(params));
+      case 'importData':          return res.json(await importData(params));
+      case 'clearData':           return res.json(await clearData(params));
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });
     }
@@ -691,5 +693,93 @@ async function deleteAccount({ userId, rowId }) {
   // Transactions are kept — they just fall back to unassigned
   await db.from('expenses').update({ Account: null }).eq('ID', userId).eq('Account', name);
   await db.from('income').update({ Account: null }).eq('ID', userId).eq('Account', name);
+  return { success: true };
+}
+
+// ══════════════════════════════════════════════════════════════
+// IMPORT / CLEAR
+// ══════════════════════════════════════════════════════════════
+const IMPORT_TABLES = {
+  expenses:    'expenses',
+  income:      'income',
+  loans:       'loan',
+  emis:        'emi',
+  emiPayments: 'emi_payments',
+  accounts:    'bank_accounts',
+};
+
+// Strips anything the client shouldn't be able to set, and forces the row to
+// belong to the importing user so a doctored file can't write to someone else.
+function sanitiseRows(rows, userId) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map(r => {
+    const out = {};
+    Object.keys(r || {}).forEach(k => {
+      if (k === 'row_id' || k === 'id' || k === '_rowIndex' || k.startsWith('_')) return;
+      out[k] = r[k];
+    });
+    out.ID = userId;
+    return out;
+  }).filter(r => Object.keys(r).length > 1);
+}
+
+async function importData({ userId, password, payload, mode }) {
+  if (!userId || !payload) return { success: false, error: 'Missing data to import' };
+
+  // Replacing everything is destructive, so it needs the password
+  if (mode === 'replace') {
+    const ok = await verifyPassword(userId, password);
+    if (!ok) return { success: false, error: 'Incorrect password' };
+    await wipeUser(userId);
+  }
+
+  const counts = {};
+  for (const [key, table] of Object.entries(IMPORT_TABLES)) {
+    const rows = sanitiseRows(payload[key], userId);
+    if (!rows.length) { counts[key] = 0; continue; }
+    // Insert in chunks so one oversized request doesn't fail the whole import
+    let done = 0;
+    for (let i = 0; i < rows.length; i += 250) {
+      const slice = rows.slice(i, i + 250);
+      const { error } = await db.from(table).insert(slice);
+      if (error) return { success: false, error: `${key}: ${error.message}`, imported: counts };
+      done += slice.length;
+    }
+    counts[key] = done;
+  }
+
+  if (payload.config && typeof payload.config === 'object') {
+    await db.from('personalised_configuration').delete().eq('ID', userId);
+    const row = { ID: userId };
+    Object.keys(payload.config).forEach(k => { if (/^C\d+$/.test(k)) row[k] = payload.config[k]; });
+    if (Object.keys(row).length > 1) await db.from('personalised_configuration').insert(row);
+  }
+
+  return { success: true, counts };
+}
+
+async function verifyPassword(userId, password) {
+  if (!password) return false;
+  const { data, error } = await db.from('users').select('*').eq('ID', userId).maybeSingle();
+  if (error || !data) return false;
+  return String(data.Password) === String(password);
+}
+
+async function wipeUser(userId) {
+  // emi_payments first — it references EMIs
+  const order = ['emi_payments', 'emi', 'loan', 'expenses', 'income',
+                 'bank_accounts', 'personalised_configuration'];
+  for (const table of order) {
+    const { error } = await db.from(table).delete().eq('ID', userId);
+    if (error && error.code !== '42P01') throw error;   // ignore tables that don't exist
+  }
+}
+
+async function clearData({ userId, password, confirm }) {
+  if (!userId) return { success: false, error: 'Not signed in' };
+  if (confirm !== 'DELETE') return { success: false, error: 'Confirmation text did not match' };
+  const ok = await verifyPassword(userId, password);
+  if (!ok) return { success: false, error: 'Incorrect password' };
+  await wipeUser(userId);
   return { success: true };
 }
