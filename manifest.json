@@ -1,0 +1,46 @@
+{
+  "name": "Wallet — Smart Finance Tracker",
+  "short_name": "Wallet",
+  "description": "Personal finance tracker — expenses, income, loans, EMI",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6fb",
+  "theme_color": "#1a73e8",
+  "icons": [
+    { "src": "Assets/fav.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "Assets/fav.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Add Expense",
+      "short_name": "Expense",
+      "description": "Record a new expense",
+      "url": "/?action=add-expense",
+      "icons": [{ "src": "Assets/shortcuts/expense.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Add Income",
+      "short_name": "Income",
+      "description": "Record new income",
+      "url": "/?action=add-income",
+      "icons": [{ "src": "Assets/shortcuts/income.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Dues",
+      "short_name": "Dues",
+      "description": "Open the dues page",
+      "url": "/?action=loans",
+      "icons": [{ "src": "Assets/shortcuts/loan.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Reports",
+      "short_name": "Reports",
+      "description": "Generate a report",
+      "url": "/?action=reports",
+      "icons": [{ "src": "Assets/shortcuts/report.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
