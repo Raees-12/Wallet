@@ -817,7 +817,7 @@ async function clearData({ userId, confirm, _auth }) {
 // ══════════════════════════════════════════════════════════════
 const ALLOWED_SETTINGS = [
   'theme', 'accent', 'hideBalance', 'decimals', 'haptics',
-  'carryForward', 'budget', 'catBudgets', 'defaultAccount'
+  'carryForward', 'budget', 'catBudgets', 'defaultAccount', 'lastCat'
 ];
 
 async function saveSettings({ userId, settings }) {
