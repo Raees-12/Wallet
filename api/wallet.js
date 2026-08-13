@@ -98,8 +98,11 @@ async function getAllData({ userId }) {
   if (!userId) return { success: false, error: 'userId required' };
 
   const [expenses, income, loans, emis, emiPayments, cfgRows, accounts, settings] = await Promise.all([
-    db.from('expenses').select('*').eq('ID', userId),
-    db.from('income').select('*').eq('ID', userId),
+    // Explicitly ordered: Postgres returns heap order otherwise, and an edited
+    // row physically moves within the heap — which used to shuffle an old entry
+    // to the top of the recent list just because it had been corrected.
+    db.from('expenses').select('*').eq('ID', userId).order('row_id', { ascending: true }),
+    db.from('income').select('*').eq('ID', userId).order('row_id', { ascending: true }),
     db.from('loan').select('*').eq('ID', userId),
     db.from('emi').select('*').eq('ID', userId),
     db.from('emi_payments').select('*').eq('ID', userId),
